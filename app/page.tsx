@@ -53,7 +53,7 @@ export default function LandingPage() {
     },
     {
       id: "fgts",
-      title: "Antecipação de FGTS",
+      title: "Antecipação Rápida de FGTS",
       description: "Antecipe seu FGTS e tenha dinheiro na conta rapidamente",
       icon: Banknote,
       color: "from-orange-500 to-orange-600",
@@ -194,7 +194,7 @@ export default function LandingPage() {
                         className={`w-full bg-gradient-to-r ${option.color} hover:opacity-90 transition-opacity`}
                         size="lg"
                       >
-                        {option.id === "fgts" ? "Solicitar Antecipação" : "Simular Agora"}
+                        {option.id === "fgts" ? "Simular Agora" : "Simular Agora"}
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                     </Link>

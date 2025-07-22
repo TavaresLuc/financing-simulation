@@ -18,10 +18,10 @@ export interface VehicleFinancingResult {
 
 // Taxas de juros baseadas no prazo
 const INTEREST_RATES = {
-  12: 1.29, // 1.29% a.m.
-  24: 1.39, // 1.39% a.m.
-  36: 1.49, // 1.49% a.m.
-  48: 1.59, // 1.59% a.m.
+  12: 1.39, // 1.39% a.m.
+  24: 1.49, // 1.49% a.m.
+  36: 1.59, // 1.59% a.m.
+  48: 1.69, // 1.69% a.m.
 }
 
 export function calculateVehicleFinancing(params: VehicleFinancingParams): VehicleFinancingResult {
@@ -47,25 +47,43 @@ export function calculateVehicleFinancing(params: VehicleFinancingParams): Vehic
 
   // Calcular parcela usando fórmula de juros compostos
   const monthlyInterestRate = interestRate / 100
-  const monthlyPayment = loanAmount > 0 
-    ? (loanAmount * monthlyInterestRate * Math.pow(1 + monthlyInterestRate, loanTermMonths)) /
-      (Math.pow(1 + monthlyInterestRate, loanTermMonths) - 1)
-    : 0
+  const monthlyPayment =
+    loanAmount > 0
+      ? (loanAmount * monthlyInterestRate * Math.pow(1 + monthlyInterestRate, loanTermMonths)) /
+        (Math.pow(1 + monthlyInterestRate, loanTermMonths) - 1)
+      : 0
 
-  const totalPayment = downPaymentAmount + (monthlyPayment * loanTermMonths)
+  const totalPayment = downPaymentAmount + monthlyPayment * loanTermMonths
   const totalInterest = totalPayment - vehicleValue
 
   return {
     vehicleValue,
     downPaymentPercentage,
-    downPaymentAmount,
-    loanAmount,
+    downPaymentAmount: Math.round(downPaymentAmount * 100) / 100,
+    loanAmount: Math.round(loanAmount * 100) / 100,
     loanTermMonths,
     interestRate,
-    monthlyPayment,
-    totalPayment,
-    totalInterest,
+    monthlyPayment: Math.round(monthlyPayment * 100) / 100,
+    totalPayment: Math.round(totalPayment * 100) / 100,
+    totalInterest: Math.round(totalInterest * 100) / 100,
   }
+}
+
+// Função auxiliar para converter valor brasileiro para número
+export function parseVehicleValue(value: string): number {
+  if (!value) return 0
+
+  // Remove todos os caracteres não numéricos exceto vírgula e ponto
+  let cleanValue = value.replace(/[^\d,.-]/g, "")
+
+  // Se contém vírgula, assume formato brasileiro (R$ 50.000,00)
+  if (cleanValue.includes(",")) {
+    // Remove pontos (separadores de milhares) e substitui vírgula por ponto
+    cleanValue = cleanValue.replace(/\./g, "").replace(",", ".")
+  }
+
+  const numericValue = Number.parseFloat(cleanValue)
+  return isNaN(numericValue) ? 0 : numericValue
 }
 
 export function formatVehicleFinancingForDatabase(
@@ -83,7 +101,7 @@ export function formatVehicleFinancingForDatabase(
     vehicle_type: vehicleData.vehicleType,
     knows_model: vehicleData.knowsModel,
     client_cep: vehicleData.cep || null,
-    vehicle_year: vehicleData.year ? parseInt(vehicleData.year) : null,
+    vehicle_year: vehicleData.year ? Number.parseInt(vehicleData.year) : null,
     vehicle_brand: vehicleData.brand || null,
     vehicle_model: vehicleData.model || null,
     vehicle_value: calculationResult.vehicleValue,

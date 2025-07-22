@@ -1,22 +1,35 @@
 "use client"
-
-import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ThemeToggle } from "@/components/theme-toggle"
-import type { SimulationData } from "@/lib/database"
 import { formatCurrency } from "@/lib/formatters"
-import { generateProposalPDF } from "@/lib/pdf-generator"
 import { ArrowLeft, Download, FileText, CheckCircle } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
-export default function ResultsPage() {
-  const params = useParams()
+interface Simulation {
+  id: string
+  propertyValue: number
+  downPaymentPercentage: number
+  downPaymentAmount: number
+  loanAmount: number
+  loanTermYears: number
+  monthlyPayment: number
+  totalPayment: number
+  totalInterest: number
+  clientName: string
+  clientEmail: string
+  clientPhone: string
+  clientCPF: string
+  createdAt: string
+}
+
+export default function ResultsPage({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const [simulation, setSimulation] = useState<SimulationData | null>(null)
+  const [simulation, setSimulation] = useState<Simulation | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isAccepting, setIsAccepting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchSimulation = async () => {
@@ -26,51 +39,56 @@ export default function ResultsPage() {
           const data = await response.json()
           setSimulation(data)
         } else {
-          router.push("/")
+          setError("Simulação não encontrada")
         }
-      } catch (error) {
-        console.error("Erro ao carregar simulação:", error)
-        router.push("/")
+      } catch (err) {
+        setError("Erro ao carregar simulação")
       } finally {
         setIsLoading(false)
       }
     }
 
-    if (params.id) {
-      fetchSimulation()
+    fetchSimulation()
+  }, [params.id])
+
+  const handleDownloadPDF = async () => {
+    try {
+      const response = await fetch(`/api/simulations/${params.id}/pdf`)
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.style.display = "none"
+        a.href = url
+        a.download = `simulacao-${params.id}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+      } else {
+        alert("Erro ao gerar PDF")
+      }
+    } catch (error) {
+      console.error("Erro:", error)
+      alert("Erro ao baixar PDF")
     }
-  }, [params.id, router])
-
-  const handleAcceptProposal = async () => {
-    if (!simulation) return
-
-    // Navigate to signature screen instead of directly accepting
-    router.push(`/signature/${simulation.id}`)
-  }
-
-  const handleDownloadPDF = () => {
-    if (!simulation) return
-
-    const pdf = generateProposalPDF(simulation)
-    pdf.save(`proposta-financiamento-${simulation.id}.pdf`)
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Carregando resultados...</p>
+          <p className="text-gray-600 dark:text-gray-300">Carregando simulação...</p>
         </div>
       </div>
     )
   }
 
-  if (!simulation) {
+  if (error || !simulation) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-400 mb-4">Simulação não encontrada</p>
+          <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
           <Link href="/">
             <Button>Voltar ao Início</Button>
           </Link>
@@ -80,29 +98,34 @@ export default function ResultsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-all duration-500 p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Link href="/">
-              <Button variant="ghost" size="icon">
+          <div className="flex items-center gap-3">
+            <Link href="/simulation">
+              <Button variant="ghost" size="icon" className="hover:bg-gray-100 dark:hover:bg-gray-800">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Resultado da Simulação</h1>
-              <p className="text-gray-600 dark:text-gray-400">Confira os detalhes do seu financiamento</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors">
+                Resultado da Simulação
+              </h1>
+              <p className="text-gray-600 dark:text-gray-300 transition-colors">
+                Confira os detalhes do seu financiamento
+              </p>
             </div>
           </div>
           <ThemeToggle />
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Client Information */}
-          <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+        {/* Client and Property Data */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* Client Data */}
+          <Card className="shadow-xl border-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
                 <FileText className="h-5 w-5" />
                 Dados do Cliente
               </CardTitle>
@@ -110,124 +133,111 @@ export default function ResultsPage() {
             <CardContent className="space-y-3">
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Nome</p>
-                <p className="font-semibold">{simulation.client_name}</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{simulation.clientName}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Email</p>
-                <p className="font-semibold">{simulation.client_email}</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{simulation.clientEmail}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Telefone</p>
-                <p className="font-semibold">{simulation.client_phone}</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{simulation.clientPhone}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">CPF</p>
-                <p className="font-semibold">{simulation.client_cpf}</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{simulation.clientCPF}</p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Property Information */}
-          <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+          {/* Property Data */}
+          <Card className="shadow-xl border-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg">
             <CardHeader>
-              <CardTitle>Dados do Imóvel</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-white">Dados do Imóvel</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Valor do Imóvel</p>
-                <p className="font-semibold text-lg">{formatCurrency(simulation.property_value)}</p>
+                <p className="font-semibold text-gray-900 dark:text-white">
+                  {formatCurrency(simulation.propertyValue)}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Entrada ({simulation.down_payment_percentage}%)
+                  Entrada ({simulation.downPaymentPercentage}%)
                 </p>
-                <p className="font-semibold">{formatCurrency(simulation.down_payment_amount)}</p>
+                <p className="font-semibold text-gray-900 dark:text-white">
+                  {formatCurrency(simulation.downPaymentAmount)}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Valor Financiado</p>
-                <p className="font-semibold">{formatCurrency(simulation.loan_amount)}</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{formatCurrency(simulation.loanAmount)}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Prazo</p>
-                <p className="font-semibold">{simulation.loan_term_years} anos</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{simulation.loanTermYears} anos</p>
               </div>
             </CardContent>
           </Card>
+        </div>
 
-          {/* Payment Details */}
-          <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm md:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-center">Resumo dos Pagamentos</CardTitle>
-              <CardDescription className="text-center">
-                Taxa de juros: {simulation.interest_rate}% ao ano
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-6 md:grid-cols-3">
-                <div className="text-center p-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Parcela Mensal</p>
-                  <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                    {formatCurrency(simulation.monthly_payment)}
-                  </p>
-                </div>
-
-                <div className="text-center p-6 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Total de Juros</p>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {formatCurrency(simulation.total_interest)}
-                  </p>
-                </div>
-
-                <div className="text-center p-6 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Total a Pagar</p>
-                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                    {formatCurrency(simulation.total_payment)}
-                  </p>
-                </div>
+        {/* Payment Summary */}
+        <Card className="shadow-xl border-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg mb-8">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl text-gray-900 dark:text-white">Resumo dos Pagamentos</CardTitle>
+            <p className="text-gray-600 dark:text-gray-300">Taxa de juros: 12% ao ano</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Monthly Payment */}
+              <div className="text-center p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                <p className="text-sm text-blue-600 dark:text-blue-400 mb-2">Parcela Mensal</p>
+                <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">
+                  {formatCurrency(simulation.monthlyPayment)}
+                </p>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Action Buttons */}
-          <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm md:col-span-2">
-            <CardContent className="pt-6">
-              {simulation.proposal_accepted ? (
-                <div className="text-center space-y-4">
-                  <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400">
-                    <CheckCircle className="h-6 w-6" />
-                    <span className="text-lg font-semibold">Proposta Aceita!</span>
-                  </div>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    Sua proposta foi aceita com sucesso. Você pode baixar o PDF novamente se necessário.
-                  </p>
-                  <Button onClick={handleDownloadPDF} className="gap-2">
-                    <Download className="h-4 w-4" />
-                    Baixar PDF Novamente
-                  </Button>
-                </div>
-              ) : (
-                <div className="text-center space-y-4">
-                  <p className="text-gray-600 dark:text-gray-400">
-                    Gostou da simulação? Aceite a proposta para gerar o documento PDF com todos os detalhes.
-                  </p>
-                  <div className="flex gap-4 justify-center">
-                    <Button
-                      onClick={handleAcceptProposal}
-                      disabled={isAccepting}
-                      className="bg-green-600 hover:bg-green-700 gap-2"
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      {isAccepting ? "Processando..." : "Criar Assinatura e Aceitar"}
-                    </Button>
-                    <Button variant="outline" onClick={handleDownloadPDF} className="gap-2 bg-transparent">
-                      <Download className="h-4 w-4" />
-                      Visualizar PDF
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              {/* Total Interest */}
+              <div className="text-center p-6 bg-green-50 dark:bg-green-900/20 rounded-xl">
+                <p className="text-sm text-green-600 dark:text-green-400 mb-2">Total de Juros</p>
+                <p className="text-3xl font-bold text-green-700 dark:text-green-300">
+                  {formatCurrency(simulation.totalInterest)}
+                </p>
+              </div>
+
+              {/* Total Payment */}
+              <div className="text-center p-6 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
+                <p className="text-sm text-purple-600 dark:text-purple-400 mb-2">Total a Pagar</p>
+                <p className="text-3xl font-bold text-purple-700 dark:text-purple-300">
+                  {formatCurrency(simulation.totalPayment)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Action Buttons */}
+        <div className="text-center space-y-4">
+          <p className="text-gray-600 dark:text-gray-300">
+            Gostou da simulação? Aceite a proposta para gerar o documento PDF com todos os detalhes.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href={`/signature/${simulation.id}`}>
+              <Button className="w-full sm:w-auto h-12 px-8 text-lg font-semibold bg-green-600 hover:bg-green-700">
+                <CheckCircle className="mr-2 h-5 w-5" />
+                Criar Assinatura e Aceitar
+              </Button>
+            </Link>
+            <Button
+              onClick={handleDownloadPDF}
+              variant="outline"
+              className="w-full sm:w-auto h-12 px-8 text-lg font-semibold bg-transparent"
+            >
+              <Download className="mr-2 h-5 w-5" />
+              Visualizar PDF
+            </Button>
+          </div>
         </div>
       </div>
     </div>

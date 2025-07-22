@@ -318,6 +318,7 @@ export default function FGTSPage() {
                     placeholder="000.000.000-00"
                     maxLength={14}
                     className={errors.cpf ? "border-red-500" : ""}
+                    inputMode="numeric"
                   />
                   {errors.cpf && <p className="text-sm text-red-500">{errors.cpf}</p>}
                 </div>
@@ -332,6 +333,7 @@ export default function FGTSPage() {
                     onChange={handleInputChange}
                     placeholder="Digite seu RG"
                     className={errors.rg ? "border-red-500" : ""}
+                    inputMode="numeric"
                   />
                   {errors.rg && <p className="text-sm text-red-500">{errors.rg}</p>}
                 </div>
@@ -347,6 +349,7 @@ export default function FGTSPage() {
                     placeholder="(00) 00000-0000"
                     maxLength={15}
                     className={errors.telefone ? "border-red-500" : ""}
+                    inputMode="numeric"
                   />
                   {errors.telefone && <p className="text-sm text-red-500">{errors.telefone}</p>}
                 </div>

@@ -205,6 +205,7 @@ export function VehicleDataForm({ data, onUpdate, onNext, onBack }: VehicleDataF
                     placeholder="2023"
                     className={errors.year ? "border-red-500" : ""}
                     maxLength={4}
+                    inputMode="numeric"
                   />
                   {errors.year && (
                     <p className="text-red-500 text-sm flex items-center gap-1">
@@ -265,6 +266,7 @@ export function VehicleDataForm({ data, onUpdate, onNext, onBack }: VehicleDataF
                 placeholder="2023"
                 className={errors.year ? "border-red-500" : ""}
                 maxLength={4}
+                inputMode="numeric"
               />
               {errors.year && (
                 <p className="text-red-500 text-sm flex items-center gap-1">
@@ -285,6 +287,7 @@ export function VehicleDataForm({ data, onUpdate, onNext, onBack }: VehicleDataF
               onChange={handleChange}
               placeholder="R$ 0,00"
               className={errors.vehicleValue ? "border-red-500" : ""}
+              inputMode="numeric"
             />
             {errors.vehicleValue && (
               <p className="text-red-500 text-sm flex items-center gap-1">

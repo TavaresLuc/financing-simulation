@@ -5,7 +5,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { Home, Car, Banknote, ArrowRight, Shield, Clock, Calculator, CheckCircle, Star, Users, TrendingUp } from 'lucide-react'
+import {
+  Home,
+  Car,
+  Banknote,
+  ArrowRight,
+  Shield,
+  Clock,
+  Calculator,
+  CheckCircle,
+  Star,
+  Users,
+  TrendingUp,
+  Settings,
+} from "lucide-react"
 import Link from "next/link"
 
 export default function LandingPage() {
@@ -23,7 +36,7 @@ export default function LandingPage() {
       textColor: "text-blue-700 dark:text-blue-300",
       href: "/simulation",
       available: true,
-      features: ["Até 35 anos para pagar", "Taxa a partir de 8,99% a.a.", "Financie até 90% do imóvel"]
+      features: ["Até 35 anos para pagar", "Taxa a partir de 8,99% a.a.", "Financie até 90% do imóvel"],
     },
     {
       id: "vehicle",
@@ -36,7 +49,7 @@ export default function LandingPage() {
       textColor: "text-green-700 dark:text-green-300",
       href: "/veiculos",
       available: true,
-      features: ["Carros, motos e caminhões", "Aprovação em até 24h", "Taxa a partir de 1,29% a.m."]
+      features: ["Carros, motos e caminhões", "Aprovação em até 24h", "Taxa a partir de 1,29% a.m."],
     },
     {
       id: "fgts",
@@ -49,15 +62,15 @@ export default function LandingPage() {
       textColor: "text-orange-700 dark:text-orange-300",
       href: "/fgts",
       available: true,
-      features: ["Processo 100% digital", "Dinheiro em até 5 dias", "Sem consulta ao SPC/Serasa"]
-    }
+      features: ["Processo 100% digital", "Dinheiro em até 5 dias", "Sem consulta ao SPC/Serasa"],
+    },
   ]
 
   const stats = [
     { label: "Clientes Atendidos", value: "50.000+", icon: Users },
     { label: "Crédito Liberado", value: "R$ 2,5 bi", icon: TrendingUp },
     { label: "Taxa de Aprovação", value: "94%", icon: CheckCircle },
-    { label: "Avaliação Média", value: "4.8/5", icon: Star }
+    { label: "Avaliação Média", value: "4.8/5", icon: Star },
   ]
 
   return (
@@ -75,7 +88,15 @@ export default function LandingPage() {
                 <p className="text-xs text-gray-600 dark:text-gray-400">Soluções financeiras para empreendedores</p>
               </div>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center space-x-3">
+              <Link href="/admin">
+                <Button variant="outline" size="sm" className="flex items-center gap-2 bg-transparent">
+                  <Settings className="h-4 w-4" />
+                  Admin
+                </Button>
+              </Link>
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </header>
@@ -86,12 +107,16 @@ export default function LandingPage() {
           <div className="max-w-4xl mx-auto">
             <h2 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
               Crédito Inteligente para
-              <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent"> Empreendedores</span>
+              <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
+                {" "}
+                Empreendedores
+              </span>
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
-              Plataforma completa de soluções de crédito pensada especialmente para empreendedores digitais que buscam crescimento e oportunidades.
+              Plataforma completa de soluções de crédito pensada especialmente para empreendedores digitais que buscam
+              crescimento e oportunidades.
             </p>
-            
+
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
               {stats.map((stat, index) => (
@@ -112,9 +137,7 @@ export default function LandingPage() {
       <section className="py-16 px-4 bg-white/50 dark:bg-gray-800/50">
         <div className="container mx-auto">
           <div className="text-center mb-12">
-            <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-              Nossas Soluções de Crédito
-            </h3>
+            <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Nossas Soluções de Crédito</h3>
             <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               Escolha a modalidade de crédito que melhor se adapta às suas necessidades e objetivos.
             </p>
@@ -124,35 +147,36 @@ export default function LandingPage() {
             {creditOptions.map((option) => {
               const IconComponent = option.icon
               return (
-                <Card 
+                <Card
                   key={option.id}
                   className={`relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${option.borderColor} ${
-                    hoveredCard === option.id ? 'scale-105' : ''
+                    hoveredCard === option.id ? "scale-105" : ""
                   }`}
                   onMouseEnter={() => setHoveredCard(option.id)}
                   onMouseLeave={() => setHoveredCard(null)}
                 >
                   <div className={`absolute inset-0 bg-gradient-to-br ${option.color} opacity-5`} />
-                  
+
                   <CardHeader className="relative">
-                    <div className={`inline-flex items-center justify-center w-16 h-16 ${option.bgColor} rounded-2xl mb-4`}>
+                    <div
+                      className={`inline-flex items-center justify-center w-16 h-16 ${option.bgColor} rounded-2xl mb-4`}
+                    >
                       <IconComponent className={`h-8 w-8 ${option.textColor}`} />
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-xl text-gray-900 dark:text-white">
-                        {option.title}
-                      </CardTitle>
+                      <CardTitle className="text-xl text-gray-900 dark:text-white">{option.title}</CardTitle>
                       {option.available && (
-                        <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                        <Badge
+                          variant="secondary"
+                          className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                        >
                           Disponível
                         </Badge>
                       )}
                     </div>
-                    
-                    <CardDescription className="text-gray-600 dark:text-gray-300">
-                      {option.description}
-                    </CardDescription>
+
+                    <CardDescription className="text-gray-600 dark:text-gray-300">{option.description}</CardDescription>
                   </CardHeader>
 
                   <CardContent className="relative space-y-4">
@@ -165,9 +189,8 @@ export default function LandingPage() {
                       ))}
                     </div>
 
-                    <Link href={option.href} className="block" >
-                    
-                      <Button 
+                    <Link href={option.href} className="block">
+                      <Button
                         className={`w-full bg-gradient-to-r ${option.color} hover:opacity-90 transition-opacity`}
                         size="lg"
                       >
@@ -239,12 +262,8 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-400">Soluções financeiras inteligentes</p>
               </div>
             </div>
-            <p className="text-gray-400 mb-4">
-              Transformando a forma como empreendedores acessam crédito no Brasil.
-            </p>
-            <p className="text-sm text-gray-500">
-              © 2024 Kiwify Crédito. Todos os direitos reservados.
-            </p>
+            <p className="text-gray-400 mb-4">Transformando a forma como empreendedores acessam crédito no Brasil.</p>
+            <p className="text-sm text-gray-500">© 2024 Kiwify Crédito. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>

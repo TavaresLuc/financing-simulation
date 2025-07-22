@@ -281,6 +281,7 @@ export default function SimulationPage() {
                             placeholder="(00) 00000-0000"
                             maxLength={15}
                             className={errors.clientPhone ? "border-red-500" : ""}
+                            inputMode="numeric"
                           />
                           {errors.clientPhone && <p className="text-red-500 text-sm mt-1">{errors.clientPhone}</p>}
                         </div>
@@ -294,6 +295,7 @@ export default function SimulationPage() {
                             placeholder="000.000.000-00"
                             maxLength={14}
                             className={errors.clientCPF ? "border-red-500" : ""}
+                            inputMode="numeric"
                           />
                           {errors.clientCPF && <p className="text-red-500 text-sm mt-1">{errors.clientCPF}</p>}
                         </div>

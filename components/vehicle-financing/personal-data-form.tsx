@@ -144,6 +144,7 @@ export function PersonalDataForm({ data, onUpdate, onNext }: PersonalDataFormPro
               onChange={handleChange}
               placeholder="(00) 00000-0000"
               className={errors.phone ? "border-red-500" : ""}
+              inputMode="numeric"
             />
             {errors.phone && (
               <p className="text-red-500 text-sm flex items-center gap-1">
@@ -164,6 +165,7 @@ export function PersonalDataForm({ data, onUpdate, onNext }: PersonalDataFormPro
               placeholder="000.000.000-00"
               className={errors.cpf ? "border-red-500" : ""}
               maxLength={14}
+              inputMode="numeric"
             />
             {errors.cpf && (
               <p className="text-red-500 text-sm flex items-center gap-1">

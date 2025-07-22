@@ -5,96 +5,262 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ThemeToggle } from "@/components/theme-toggle"
 import type { SimulationData } from "@/lib/database"
 import { formatCurrency } from "@/lib/formatters"
-import { ArrowLeft, CheckCircle, Clock, Users, DollarSign, TrendingUp } from "lucide-react"
+import { ArrowLeft, CheckCircle, Clock, Users, DollarSign, TrendingUp, Home, Car, Banknote } from "lucide-react"
 import Link from "next/link"
 
+interface VehicleSimulation {
+  id: number
+  client_name: string
+  client_email: string
+  client_phone: string
+  vehicle_brand: string
+  vehicle_model: string
+  vehicle_year: number
+  vehicle_value: number
+  down_payment_percentage: number
+  down_payment_value: number
+  financed_amount: number
+  loan_term_months: number
+  interest_rate: number
+  monthly_payment: number
+  total_interest: number
+  total_amount: number
+  proposal_accepted: boolean
+  created_at: string
+}
+
+interface FGTSSimulation {
+  id: number
+  client_name: string
+  client_email: string
+  client_phone: string
+  client_cpf: string
+  birth_date: string
+  fgts_balance: number
+  employment_time_months: number
+  monthly_salary: number
+  requested_amount: number
+  interest_rate: number
+  loan_term_months: number
+  monthly_payment: number
+  total_interest: number
+  total_amount: number
+  proposal_accepted: boolean
+  created_at: string
+}
+
 export default function AdminPage() {
-  const [simulations, setSimulations] = useState<SimulationData[]>([])
+  const [realEstateSimulations, setRealEstateSimulations] = useState<SimulationData[]>([])
+  const [vehicleSimulations, setVehicleSimulations] = useState<VehicleSimulation[]>([])
+  const [fgtsSimulations, setFGTSSimulations] = useState<FGTSSimulation[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState({
-    total: 0,
-    accepted: 0,
-    totalValue: 0,
-    avgMonthlyPayment: 0,
+    realEstate: {
+      total: 0,
+      accepted: 0,
+      totalValue: 0,
+      avgMonthlyPayment: 0,
+    },
+    vehicle: {
+      total: 0,
+      accepted: 0,
+      totalValue: 0,
+      avgMonthlyPayment: 0,
+    },
+    fgts: {
+      total: 0,
+      accepted: 0,
+      totalValue: 0,
+      avgMonthlyPayment: 0,
+    },
   })
 
   useEffect(() => {
-    const fetchSimulations = async () => {
+    const fetchAllData = async () => {
       try {
-        const response = await fetch("/api/simulations")
-        if (response.ok) {
-          const data = await response.json()
-          console.log(`Fetched ${data.length} simulations`)
+        setError(null)
 
-          // Log raw data to inspect
-          if (data.length > 0) {
-            console.log("First simulation raw data:", data[0])
+        // Fetch Real Estate Simulations
+        try {
+          console.log("Fetching real estate simulations...")
+          const realEstateResponse = await fetch("/api/simulations")
+
+          if (!realEstateResponse.ok) {
+            throw new Error(`Real estate API error: ${realEstateResponse.status}`)
           }
 
-          setSimulations(data)
+          const contentType = realEstateResponse.headers.get("content-type")
+          if (!contentType || !contentType.includes("application/json")) {
+            const text = await realEstateResponse.text()
+            console.error("Real estate API returned non-JSON:", text.substring(0, 200))
+            throw new Error("Real estate API returned invalid JSON")
+          }
 
-          // Calculate stats after setting simulations
-          if (data && data.length > 0) {
-            // Count accepted proposals
-            const acceptedCount = data.filter((s: SimulationData) => s.proposal_accepted).length
-            console.log(`Found ${acceptedCount} accepted proposals out of ${data.length} total`)
+          const realEstateData = await realEstateResponse.json()
+          console.log("Real estate data received:", realEstateData)
 
-            // Calculate total property value
-            let totalPropertyValue = 0
-            data.forEach((sim: SimulationData, index: number) => {
-              const propValue = Number(sim.property_value)
-              if (isFinite(propValue) && !isNaN(propValue)) {
-                totalPropertyValue += propValue
-                console.log(
-                  `Simulation ${index}: Adding property value ${propValue}, running total: ${totalPropertyValue}`,
-                )
-              } else {
-                console.warn(`Simulation ${index}: Invalid property value: ${sim.property_value}`)
-              }
-            })
+          // Ensure data is an array
+          const realEstateArray = Array.isArray(realEstateData) ? realEstateData : []
+          setRealEstateSimulations(realEstateArray)
 
-            // Calculate average monthly payment
-            let totalMonthlyPayment = 0
-            let validPaymentCount = 0
-            data.forEach((sim: SimulationData, index: number) => {
-              const monthlyPayment = Number(sim.monthly_payment)
-              if (isFinite(monthlyPayment) && !isNaN(monthlyPayment)) {
-                totalMonthlyPayment += monthlyPayment
-                validPaymentCount++
-                console.log(
-                  `Simulation ${index}: Adding monthly payment ${monthlyPayment}, running total: ${totalMonthlyPayment}`,
-                )
-              } else {
-                console.warn(`Simulation ${index}: Invalid monthly payment: ${sim.monthly_payment}`)
-              }
-            })
+          // Calculate real estate stats
+          const acceptedCount = realEstateArray.filter((s: SimulationData) => s.proposal_accepted).length
+          let totalPropertyValue = 0
+          let totalMonthlyPayment = 0
+          let validPaymentCount = 0
 
-            const avgPayment = validPaymentCount > 0 ? totalMonthlyPayment / validPaymentCount : 0
-
-            const newStats = {
-              total: data.length,
-              accepted: acceptedCount,
-              totalValue: totalPropertyValue,
-              avgMonthlyPayment: avgPayment,
+          realEstateArray.forEach((sim: SimulationData) => {
+            const propValue = Number(sim.property_value)
+            if (isFinite(propValue) && !isNaN(propValue)) {
+              totalPropertyValue += propValue
             }
 
-            console.log("Final calculated stats:", newStats)
-            setStats(newStats)
+            const monthlyPayment = Number(sim.monthly_payment)
+            if (isFinite(monthlyPayment) && !isNaN(monthlyPayment)) {
+              totalMonthlyPayment += monthlyPayment
+              validPaymentCount++
+            }
+          })
+
+          setStats((prev) => ({
+            ...prev,
+            realEstate: {
+              total: realEstateArray.length,
+              accepted: acceptedCount,
+              totalValue: totalPropertyValue,
+              avgMonthlyPayment: validPaymentCount > 0 ? totalMonthlyPayment / validPaymentCount : 0,
+            },
+          }))
+        } catch (error) {
+          console.error("Error fetching real estate simulations:", error)
+          setRealEstateSimulations([])
+        }
+
+        // Fetch Vehicle Simulations
+        try {
+          console.log("Fetching vehicle simulations...")
+          const vehicleResponse = await fetch("/api/vehicle-simulations")
+
+          if (!vehicleResponse.ok) {
+            throw new Error(`Vehicle API error: ${vehicleResponse.status}`)
           }
-        } else {
-          console.error("Failed to fetch simulations:", response.statusText)
+
+          const contentType = vehicleResponse.headers.get("content-type")
+          if (!contentType || !contentType.includes("application/json")) {
+            const text = await vehicleResponse.text()
+            console.error("Vehicle API returned non-JSON:", text.substring(0, 200))
+            throw new Error("Vehicle API returned invalid JSON")
+          }
+
+          const vehicleData = await vehicleResponse.json()
+          console.log("Vehicle data received:", vehicleData)
+
+          // Ensure data is an array
+          const vehicleArray = Array.isArray(vehicleData) ? vehicleData : []
+          setVehicleSimulations(vehicleArray)
+
+          // Calculate vehicle stats
+          const acceptedCount = vehicleArray.filter((s: VehicleSimulation) => s.proposal_accepted).length
+          let totalVehicleValue = 0
+          let totalMonthlyPayment = 0
+          let validPaymentCount = 0
+
+          vehicleArray.forEach((sim: VehicleSimulation) => {
+            const vehicleValue = Number(sim.vehicle_value)
+            if (isFinite(vehicleValue) && !isNaN(vehicleValue)) {
+              totalVehicleValue += vehicleValue
+            }
+
+            const monthlyPayment = Number(sim.monthly_payment)
+            if (isFinite(monthlyPayment) && !isNaN(monthlyPayment)) {
+              totalMonthlyPayment += monthlyPayment
+              validPaymentCount++
+            }
+          })
+
+          setStats((prev) => ({
+            ...prev,
+            vehicle: {
+              total: vehicleArray.length,
+              accepted: acceptedCount,
+              totalValue: totalVehicleValue,
+              avgMonthlyPayment: validPaymentCount > 0 ? totalMonthlyPayment / validPaymentCount : 0,
+            },
+          }))
+        } catch (error) {
+          console.error("Error fetching vehicle simulations:", error)
+          setVehicleSimulations([])
+        }
+
+        // Fetch FGTS Simulations
+        try {
+          console.log("Fetching FGTS simulations...")
+          const fgtsResponse = await fetch("/api/fgts-simulations")
+
+          if (!fgtsResponse.ok) {
+            throw new Error(`FGTS API error: ${fgtsResponse.status}`)
+          }
+
+          const contentType = fgtsResponse.headers.get("content-type")
+          if (!contentType || !contentType.includes("application/json")) {
+            const text = await fgtsResponse.text()
+            console.error("FGTS API returned non-JSON:", text.substring(0, 200))
+            throw new Error("FGTS API returned invalid JSON")
+          }
+
+          const fgtsData = await fgtsResponse.json()
+          console.log("FGTS data received:", fgtsData)
+
+          // Ensure data is an array
+          const fgtsArray = Array.isArray(fgtsData) ? fgtsData : []
+          setFGTSSimulations(fgtsArray)
+
+          // Calculate FGTS stats
+          const acceptedCount = fgtsArray.filter((s: FGTSSimulation) => s.proposal_accepted).length
+          let totalRequestedAmount = 0
+          let totalMonthlyPayment = 0
+          let validPaymentCount = 0
+
+          fgtsArray.forEach((sim: FGTSSimulation) => {
+            const requestedAmount = Number(sim.requested_amount)
+            if (isFinite(requestedAmount) && !isNaN(requestedAmount)) {
+              totalRequestedAmount += requestedAmount
+            }
+
+            const monthlyPayment = Number(sim.monthly_payment)
+            if (isFinite(monthlyPayment) && !isNaN(monthlyPayment)) {
+              totalMonthlyPayment += monthlyPayment
+              validPaymentCount++
+            }
+          })
+
+          setStats((prev) => ({
+            ...prev,
+            fgts: {
+              total: fgtsArray.length,
+              accepted: acceptedCount,
+              totalValue: totalRequestedAmount,
+              avgMonthlyPayment: validPaymentCount > 0 ? totalMonthlyPayment / validPaymentCount : 0,
+            },
+          }))
+        } catch (error) {
+          console.error("Error fetching FGTS simulations:", error)
+          setFGTSSimulations([])
         }
       } catch (error) {
-        console.error("Erro ao carregar simulações:", error)
+        console.error("General error loading data:", error)
+        setError("Erro ao carregar dados do painel administrativo")
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchSimulations()
+    fetchAllData()
   }, [])
 
   if (isLoading) {
@@ -106,6 +272,29 @@ export default function AdminPage() {
         </div>
       </div>
     )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">
+            <Clock className="h-12 w-12 mx-auto mb-2" />
+            <p className="text-lg font-semibold">Erro ao carregar dados</p>
+            <p className="text-sm">{error}</p>
+          </div>
+          <Button onClick={() => window.location.reload()}>Tentar Novamente</Button>
+        </div>
+      </div>
+    )
+  }
+
+  const totalStats = {
+    total: stats.realEstate.total + stats.vehicle.total + stats.fgts.total,
+    accepted: stats.realEstate.accepted + stats.vehicle.accepted + stats.fgts.accepted,
+    totalValue: stats.realEstate.totalValue + stats.vehicle.totalValue + stats.fgts.totalValue,
+    avgMonthlyPayment:
+      (stats.realEstate.avgMonthlyPayment + stats.vehicle.avgMonthlyPayment + stats.fgts.avgMonthlyPayment) / 3,
   }
 
   return (
@@ -127,18 +316,7 @@ export default function AdminPage() {
           <ThemeToggle />
         </div>
 
-        {/* Debug Info - Only in development */}
-        {process.env.NODE_ENV === "development" && (
-          <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg text-xs">
-            <p className="font-semibold mb-1">Debug Info:</p>
-            <p>Total Simulations: {stats.total}</p>
-            <p>Accepted Proposals: {stats.accepted}</p>
-            <p>Total Value: {stats.totalValue}</p>
-            <p>Avg Monthly Payment: {stats.avgMonthlyPayment}</p>
-          </div>
-        )}
-
-        {/* Stats Cards */}
+        {/* Overall Stats Cards */}
         <div className="grid gap-6 md:grid-cols-4 mb-8">
           <Card className="shadow-lg border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
             <CardContent className="p-6">
@@ -148,7 +326,7 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Total de Simulações</p>
-                  <p className="text-2xl font-bold">{stats.total}</p>
+                  <p className="text-2xl font-bold">{totalStats.total}</p>
                 </div>
               </div>
             </CardContent>
@@ -162,7 +340,7 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Propostas Aceitas</p>
-                  <p className="text-2xl font-bold">{stats.accepted}</p>
+                  <p className="text-2xl font-bold">{totalStats.accepted}</p>
                 </div>
               </div>
             </CardContent>
@@ -176,7 +354,7 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Valor Total</p>
-                  <p className="text-xl font-bold">{formatCurrency(stats.totalValue)}</p>
+                  <p className="text-xl font-bold">{formatCurrency(totalStats.totalValue)}</p>
                 </div>
               </div>
             </CardContent>
@@ -190,68 +368,319 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Parcela Média</p>
-                  <p className="text-xl font-bold">{formatCurrency(stats.avgMonthlyPayment)}</p>
+                  <p className="text-xl font-bold">{formatCurrency(totalStats.avgMonthlyPayment)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Simulations Table */}
+        {/* Tabbed Interface */}
         <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle>Simulações Realizadas</CardTitle>
-            <CardDescription>Lista completa de todas as simulações de financiamento</CardDescription>
+            <CardTitle>Simulações por Categoria</CardTitle>
+            <CardDescription>Visualize os dados organizados por tipo de financiamento</CardDescription>
           </CardHeader>
           <CardContent>
-            {simulations.length === 0 ? (
-              <div className="text-center py-8">
-                <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 dark:text-gray-400">Nenhuma simulação encontrada</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Valor do Imóvel</TableHead>
-                      <TableHead>Parcela Mensal</TableHead>
-                      <TableHead>Prazo</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Data</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {simulations.map((simulation) => (
-                      <TableRow key={simulation.id}>
-                        <TableCell className="font-medium">{simulation.client_name}</TableCell>
-                        <TableCell>{simulation.client_email}</TableCell>
-                        <TableCell>{formatCurrency(simulation.property_value)}</TableCell>
-                        <TableCell>{formatCurrency(simulation.monthly_payment)}</TableCell>
-                        <TableCell>{simulation.loan_term_years} anos</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={simulation.proposal_accepted ? "default" : "secondary"}
-                            className={
-                              simulation.proposal_accepted
-                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                            }
-                          >
-                            {simulation.proposal_accepted ? "Aceita" : "Pendente"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {simulation.created_at ? new Date(simulation.created_at).toLocaleDateString("pt-BR") : "-"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+            <Tabs defaultValue="real-estate" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="real-estate" className="flex items-center gap-2">
+                  <Home className="h-4 w-4" />
+                  Imóveis ({stats.realEstate.total})
+                </TabsTrigger>
+                <TabsTrigger value="vehicles" className="flex items-center gap-2">
+                  <Car className="h-4 w-4" />
+                  Veículos ({stats.vehicle.total})
+                </TabsTrigger>
+                <TabsTrigger value="fgts" className="flex items-center gap-2">
+                  <Banknote className="h-4 w-4" />
+                  FGTS ({stats.fgts.total})
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Real Estate Tab */}
+              <TabsContent value="real-estate" className="mt-6">
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
+                          <p className="text-2xl font-bold">{stats.realEstate.total}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Aceitas</p>
+                          <p className="text-2xl font-bold text-green-600">{stats.realEstate.accepted}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Valor Total</p>
+                          <p className="text-lg font-bold">{formatCurrency(stats.realEstate.totalValue)}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Parcela Média</p>
+                          <p className="text-lg font-bold">{formatCurrency(stats.realEstate.avgMonthlyPayment)}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {realEstateSimulations.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 dark:text-gray-400">Nenhuma simulação de imóvel encontrada</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Valor do Imóvel</TableHead>
+                            <TableHead>Parcela Mensal</TableHead>
+                            <TableHead>Prazo</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Data</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {realEstateSimulations.map((simulation) => (
+                            <TableRow key={simulation.id}>
+                              <TableCell className="font-medium">{simulation.client_name}</TableCell>
+                              <TableCell>{simulation.client_email}</TableCell>
+                              <TableCell>{formatCurrency(simulation.property_value)}</TableCell>
+                              <TableCell>{formatCurrency(simulation.monthly_payment)}</TableCell>
+                              <TableCell>{simulation.loan_term_years} anos</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={simulation.proposal_accepted ? "default" : "secondary"}
+                                  className={
+                                    simulation.proposal_accepted
+                                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                                  }
+                                >
+                                  {simulation.proposal_accepted ? "Aceita" : "Pendente"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {simulation.created_at
+                                  ? new Date(simulation.created_at).toLocaleDateString("pt-BR")
+                                  : "-"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* Vehicles Tab */}
+              <TabsContent value="vehicles" className="mt-6">
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
+                          <p className="text-2xl font-bold">{stats.vehicle.total}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Aceitas</p>
+                          <p className="text-2xl font-bold text-green-600">{stats.vehicle.accepted}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Valor Total</p>
+                          <p className="text-lg font-bold">{formatCurrency(stats.vehicle.totalValue)}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Parcela Média</p>
+                          <p className="text-lg font-bold">{formatCurrency(stats.vehicle.avgMonthlyPayment)}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {vehicleSimulations.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 dark:text-gray-400">Nenhuma simulação de veículo encontrada</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Veículo</TableHead>
+                            <TableHead>Valor</TableHead>
+                            <TableHead>Entrada</TableHead>
+                            <TableHead>Parcela</TableHead>
+                            <TableHead>Prazo</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Data</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {vehicleSimulations.map((simulation) => (
+                            <TableRow key={simulation.id}>
+                              <TableCell className="font-medium">{simulation.client_name}</TableCell>
+                              <TableCell>{simulation.client_email}</TableCell>
+                              <TableCell>
+                                {simulation.vehicle_brand} {simulation.vehicle_model} {simulation.vehicle_year}
+                              </TableCell>
+                              <TableCell>{formatCurrency(simulation.vehicle_value)}</TableCell>
+                              <TableCell>{formatCurrency(simulation.down_payment_value)}</TableCell>
+                              <TableCell>{formatCurrency(simulation.monthly_payment)}</TableCell>
+                              <TableCell>{simulation.loan_term_months} meses</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={simulation.proposal_accepted ? "default" : "secondary"}
+                                  className={
+                                    simulation.proposal_accepted
+                                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                                  }
+                                >
+                                  {simulation.proposal_accepted ? "Aceita" : "Pendente"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {simulation.created_at
+                                  ? new Date(simulation.created_at).toLocaleDateString("pt-BR")
+                                  : "-"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* FGTS Tab */}
+              <TabsContent value="fgts" className="mt-6">
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
+                          <p className="text-2xl font-bold">{stats.fgts.total}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Aceitas</p>
+                          <p className="text-2xl font-bold text-green-600">{stats.fgts.accepted}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Valor Total</p>
+                          <p className="text-lg font-bold">{formatCurrency(stats.fgts.totalValue)}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Parcela Média</p>
+                          <p className="text-lg font-bold">{formatCurrency(stats.fgts.avgMonthlyPayment)}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {fgtsSimulations.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 dark:text-gray-400">Nenhuma simulação de FGTS encontrada</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>CPF</TableHead>
+                            <TableHead>Saldo FGTS</TableHead>
+                            <TableHead>Valor Solicitado</TableHead>
+                            <TableHead>Parcela</TableHead>
+                            <TableHead>Prazo</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Data</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {fgtsSimulations.map((simulation) => (
+                            <TableRow key={simulation.id}>
+                              <TableCell className="font-medium">{simulation.client_name}</TableCell>
+                              <TableCell>{simulation.client_email}</TableCell>
+                              <TableCell>{simulation.client_cpf}</TableCell>
+                              <TableCell>{formatCurrency(simulation.fgts_balance)}</TableCell>
+                              <TableCell>{formatCurrency(simulation.requested_amount)}</TableCell>
+                              <TableCell>{formatCurrency(simulation.monthly_payment)}</TableCell>
+                              <TableCell>{simulation.loan_term_months} meses</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={simulation.proposal_accepted ? "default" : "secondary"}
+                                  className={
+                                    simulation.proposal_accepted
+                                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                                  }
+                                >
+                                  {simulation.proposal_accepted ? "Aceita" : "Pendente"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {simulation.created_at
+                                  ? new Date(simulation.created_at).toLocaleDateString("pt-BR")
+                                  : "-"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>

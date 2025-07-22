@@ -181,6 +181,7 @@ export function VehicleDataForm({ data, onUpdate, onNext, onBack }: VehicleDataF
               placeholder="00000-000"
               className={errors.cep ? "border-red-500" : ""}
               maxLength={9}
+              inputMode="numeric"
             />
             {errors.cep && (
               <p className="text-red-500 text-sm flex items-center gap-1">

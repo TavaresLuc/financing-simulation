@@ -1,5 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { saveFGTSSimulation, getAllFGTSSimulations } from "@/lib/fgts-database"
+import { neon } from "@neondatabase/serverless"
+import { v4 as uuidv4 } from "uuid"
+
+const sql = neon(process.env.DATABASE_URL!)
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +23,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validação dos dados obrigatórios
+    // Validate required data
     const { nome_completo, cpf, rg, telefone } = body
 
     if (!nome_completo?.trim()) {
@@ -39,19 +42,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Telefone é obrigatório" }, { status: 400 })
     }
 
-    // Validação do CPF (formato básico)
+    // Basic CPF validation
     const cpfNumbers = cpf.replace(/\D/g, "")
     if (cpfNumbers.length !== 11) {
       return NextResponse.json({ success: false, error: "CPF deve ter 11 dígitos" }, { status: 400 })
     }
 
-    // Validação do telefone (formato básico)
+    // Basic phone validation
     const telefoneNumbers = telefone.replace(/\D/g, "")
     if (telefoneNumbers.length < 10 || telefoneNumbers.length > 11) {
       return NextResponse.json({ success: false, error: "Telefone deve ter 10 ou 11 dígitos" }, { status: 400 })
     }
 
-    // Validação do nome completo (pelo menos 2 palavras)
+    // Full name validation
     const nomePartes = nome_completo.trim().split(/\s+/)
     if (nomePartes.length < 2) {
       return NextResponse.json(
@@ -60,43 +63,53 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validação do RG (mínimo 5 caracteres)
+    // RG validation
     if (rg.trim().length < 5) {
       return NextResponse.json({ success: false, error: "RG deve ter pelo menos 5 caracteres" }, { status: 400 })
     }
 
-    // Salvar no banco de dados
-    try {
-      const simulation = await saveFGTSSimulation({
-        nome_completo: nome_completo.trim(),
-        cpf: cpf.trim(),
-        rg: rg.trim(),
-        telefone: telefone.trim(),
-      })
+    // Generate unique ID
+    const simulationId = uuidv4()
 
-      console.log("Simulação FGTS salva com sucesso:", simulation.id)
-
-      return NextResponse.json({
-        success: true,
-        message: "Solicitação de antecipação FGTS enviada com sucesso!",
-        data: simulation,
-      })
-    } catch (dbError) {
-      console.error("Erro no banco de dados:", dbError)
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Erro ao salvar no banco de dados. Tente novamente.",
-        },
-        { status: 500 },
+    // Insert into database with only the columns that exist
+    const result = await sql`
+      INSERT INTO fgts_simulacao (
+        id,
+        nome_completo,
+        cpf,
+        rg,
+        telefone,
+        created_at,
+        updated_at
+      ) VALUES (
+        ${simulationId},
+        ${nome_completo},
+        ${cpf},
+        ${rg},
+        ${telefone},
+        NOW(),
+        NOW()
       )
+      RETURNING *
+    `
+
+    console.log("Simulação FGTS salva com sucesso:", result[0])
+
+    const response = {
+      id: simulationId,
+      nomeCompleto: nome_completo,
+      cpf: cpf,
+      rg: rg,
+      telefone: telefone,
     }
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error("Erro geral na API FGTS:", error)
     return NextResponse.json(
       {
-        success: false,
-        error: "Erro interno do servidor. Tente novamente mais tarde.",
+        error: "Failed to create FGTS simulation",
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     )
@@ -105,20 +118,32 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    console.log("Buscando todas as simulações FGTS...")
+    console.log("Fetching all FGTS simulations...")
 
-    const simulations = await getAllFGTSSimulations()
+    // Only select columns that actually exist in the fgts_simulacao table
+    const simulations = await sql`
+      SELECT 
+        id,
+        nome_completo,
+        cpf,
+        rg,
+        telefone,
+        created_at,
+        updated_at
+      FROM fgts_simulacao 
+      ORDER BY created_at DESC 
+      LIMIT 100
+    `
 
-    return NextResponse.json({
-      success: true,
-      data: simulations,
-    })
+    console.log(`Found ${simulations.length} FGTS simulations`)
+    return NextResponse.json(simulations)
   } catch (error) {
-    console.error("Erro ao buscar simulações FGTS:", error)
+    console.error("Error fetching FGTS simulations:", error)
     return NextResponse.json(
       {
         success: false,
         error: "Erro ao buscar simulações no banco de dados",
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     )

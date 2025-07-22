@@ -13,44 +13,36 @@ import { ArrowLeft, CheckCircle, Clock, Users, DollarSign, TrendingUp, Home, Car
 import Link from "next/link"
 
 interface VehicleSimulation {
-  id: number
-  client_name: string
-  client_email: string
-  client_phone: string
-  vehicle_brand: string
-  vehicle_model: string
-  vehicle_year: number
-  vehicle_value: number
-  down_payment_percentage: number
-  down_payment_value: number
-  financed_amount: number
-  loan_term_months: number
-  interest_rate: number
-  monthly_payment: number
-  total_interest: number
-  total_amount: number
-  proposal_accepted: boolean
-  created_at: string
-}
-
-interface FGTSSimulation {
-  id: number
+  id: number | string
   client_name: string
   client_email: string
   client_phone: string
   client_cpf: string
-  birth_date: string
-  fgts_balance: number
-  employment_time_months: number
-  monthly_salary: number
-  requested_amount: number
-  interest_rate: number
+  vehicle_type: string
+  vehicle_brand?: string
+  vehicle_model?: string
+  vehicle_year?: number
+  vehicle_value: number
+  down_payment_percentage: number
+  down_payment_amount: number
+  loan_amount: number
   loan_term_months: number
+  interest_rate: number
   monthly_payment: number
+  total_payment: number
   total_interest: number
-  total_amount: number
-  proposal_accepted: boolean
+  proposal_accepted?: boolean
   created_at: string
+}
+
+interface FGTSSimulation {
+  id: number | string
+  nome_completo: string
+  cpf: string
+  rg: string
+  telefone: string
+  created_at: string
+  updated_at?: string
 }
 
 export default function AdminPage() {
@@ -80,10 +72,28 @@ export default function AdminPage() {
     },
   })
 
+  // Helper function to safely convert ID to string and slice it
+  const formatId = (id: number | string | undefined): string => {
+    if (!id) return "N/A"
+    const idStr = String(id)
+    return idStr.length > 8 ? `${idStr.slice(0, 8)}...` : idStr
+  }
+
+  // Helper function to safely format date
+  const formatDate = (dateString: string | undefined): string => {
+    if (!dateString) return "N/A"
+    try {
+      return new Date(dateString).toLocaleDateString("pt-BR")
+    } catch {
+      return "N/A"
+    }
+  }
+
   useEffect(() => {
     const fetchAllData = async () => {
       try {
         setError(null)
+        console.log("Starting to fetch all admin data...")
 
         // Fetch Real Estate Simulations
         try {
@@ -91,6 +101,7 @@ export default function AdminPage() {
           const realEstateResponse = await fetch("/api/simulations")
 
           if (!realEstateResponse.ok) {
+            console.error(`Real estate API error: ${realEstateResponse.status} ${realEstateResponse.statusText}`)
             throw new Error(`Real estate API error: ${realEstateResponse.status}`)
           }
 
@@ -136,6 +147,13 @@ export default function AdminPage() {
               avgMonthlyPayment: validPaymentCount > 0 ? totalMonthlyPayment / validPaymentCount : 0,
             },
           }))
+
+          console.log("Real estate stats calculated:", {
+            total: realEstateArray.length,
+            accepted: acceptedCount,
+            totalValue: totalPropertyValue,
+            avgMonthlyPayment: validPaymentCount > 0 ? totalMonthlyPayment / validPaymentCount : 0,
+          })
         } catch (error) {
           console.error("Error fetching real estate simulations:", error)
           setRealEstateSimulations([])
@@ -147,6 +165,7 @@ export default function AdminPage() {
           const vehicleResponse = await fetch("/api/vehicle-simulations")
 
           if (!vehicleResponse.ok) {
+            console.error(`Vehicle API error: ${vehicleResponse.status} ${vehicleResponse.statusText}`)
             throw new Error(`Vehicle API error: ${vehicleResponse.status}`)
           }
 
@@ -192,6 +211,13 @@ export default function AdminPage() {
               avgMonthlyPayment: validPaymentCount > 0 ? totalMonthlyPayment / validPaymentCount : 0,
             },
           }))
+
+          console.log("Vehicle stats calculated:", {
+            total: vehicleArray.length,
+            accepted: acceptedCount,
+            totalValue: totalVehicleValue,
+            avgMonthlyPayment: validPaymentCount > 0 ? totalMonthlyPayment / validPaymentCount : 0,
+          })
         } catch (error) {
           console.error("Error fetching vehicle simulations:", error)
           setVehicleSimulations([])
@@ -203,6 +229,9 @@ export default function AdminPage() {
           const fgtsResponse = await fetch("/api/fgts-simulations")
 
           if (!fgtsResponse.ok) {
+            console.error(`FGTS API error: ${fgtsResponse.status} ${fgtsResponse.statusText}`)
+            const errorText = await fgtsResponse.text()
+            console.error("FGTS API error details:", errorText)
             throw new Error(`FGTS API error: ${fgtsResponse.status}`)
           }
 
@@ -220,38 +249,29 @@ export default function AdminPage() {
           const fgtsArray = Array.isArray(fgtsData) ? fgtsData : []
           setFGTSSimulations(fgtsArray)
 
-          // Calculate FGTS stats
-          const acceptedCount = fgtsArray.filter((s: FGTSSimulation) => s.proposal_accepted).length
-          let totalRequestedAmount = 0
-          let totalMonthlyPayment = 0
-          let validPaymentCount = 0
-
-          fgtsArray.forEach((sim: FGTSSimulation) => {
-            const requestedAmount = Number(sim.requested_amount)
-            if (isFinite(requestedAmount) && !isNaN(requestedAmount)) {
-              totalRequestedAmount += requestedAmount
-            }
-
-            const monthlyPayment = Number(sim.monthly_payment)
-            if (isFinite(monthlyPayment) && !isNaN(monthlyPayment)) {
-              totalMonthlyPayment += monthlyPayment
-              validPaymentCount++
-            }
-          })
-
+          // Calculate FGTS stats (simplified since FGTS doesn't have financial calculations)
           setStats((prev) => ({
             ...prev,
             fgts: {
               total: fgtsArray.length,
-              accepted: acceptedCount,
-              totalValue: totalRequestedAmount,
-              avgMonthlyPayment: validPaymentCount > 0 ? totalMonthlyPayment / validPaymentCount : 0,
+              accepted: 0, // FGTS doesn't have accepted/rejected status yet
+              totalValue: 0, // FGTS doesn't have value calculations yet
+              avgMonthlyPayment: 0, // FGTS doesn't have monthly payments
             },
           }))
+
+          console.log("FGTS stats calculated:", {
+            total: fgtsArray.length,
+            accepted: 0,
+            totalValue: 0,
+            avgMonthlyPayment: 0,
+          })
         } catch (error) {
           console.error("Error fetching FGTS simulations:", error)
           setFGTSSimulations([])
         }
+
+        console.log("All data fetching completed successfully")
       } catch (error) {
         console.error("General error loading data:", error)
         setError("Erro ao carregar dados do painel administrativo")
@@ -294,7 +314,11 @@ export default function AdminPage() {
     accepted: stats.realEstate.accepted + stats.vehicle.accepted + stats.fgts.accepted,
     totalValue: stats.realEstate.totalValue + stats.vehicle.totalValue + stats.fgts.totalValue,
     avgMonthlyPayment:
-      (stats.realEstate.avgMonthlyPayment + stats.vehicle.avgMonthlyPayment + stats.fgts.avgMonthlyPayment) / 3,
+      stats.realEstate.total + stats.vehicle.total > 0
+        ? (stats.realEstate.avgMonthlyPayment * stats.realEstate.total +
+            stats.vehicle.avgMonthlyPayment * stats.vehicle.total) /
+          (stats.realEstate.total + stats.vehicle.total)
+        : 0,
   }
 
   return (
@@ -446,6 +470,7 @@ export default function AdminPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
+                            <TableHead>ID</TableHead>
                             <TableHead>Cliente</TableHead>
                             <TableHead>Email</TableHead>
                             <TableHead>Valor do Imóvel</TableHead>
@@ -458,11 +483,12 @@ export default function AdminPage() {
                         <TableBody>
                           {realEstateSimulations.map((simulation) => (
                             <TableRow key={simulation.id}>
-                              <TableCell className="font-medium">{simulation.client_name}</TableCell>
-                              <TableCell>{simulation.client_email}</TableCell>
-                              <TableCell>{formatCurrency(simulation.property_value)}</TableCell>
-                              <TableCell>{formatCurrency(simulation.monthly_payment)}</TableCell>
-                              <TableCell>{simulation.loan_term_years} anos</TableCell>
+                              <TableCell className="font-mono text-sm">{formatId(simulation.id)}</TableCell>
+                              <TableCell className="font-medium">{simulation.client_name || "N/A"}</TableCell>
+                              <TableCell>{simulation.client_email || "N/A"}</TableCell>
+                              <TableCell>{formatCurrency(Number(simulation.property_value) || 0)}</TableCell>
+                              <TableCell>{formatCurrency(Number(simulation.monthly_payment) || 0)}</TableCell>
+                              <TableCell>{simulation.loan_term_years || "N/A"} anos</TableCell>
                               <TableCell>
                                 <Badge
                                   variant={simulation.proposal_accepted ? "default" : "secondary"}
@@ -475,11 +501,7 @@ export default function AdminPage() {
                                   {simulation.proposal_accepted ? "Aceita" : "Pendente"}
                                 </Badge>
                               </TableCell>
-                              <TableCell>
-                                {simulation.created_at
-                                  ? new Date(simulation.created_at).toLocaleDateString("pt-BR")
-                                  : "-"}
-                              </TableCell>
+                              <TableCell>{formatDate(simulation.created_at)}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -537,6 +559,7 @@ export default function AdminPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
+                            <TableHead>ID</TableHead>
                             <TableHead>Cliente</TableHead>
                             <TableHead>Email</TableHead>
                             <TableHead>Veículo</TableHead>
@@ -551,15 +574,18 @@ export default function AdminPage() {
                         <TableBody>
                           {vehicleSimulations.map((simulation) => (
                             <TableRow key={simulation.id}>
-                              <TableCell className="font-medium">{simulation.client_name}</TableCell>
-                              <TableCell>{simulation.client_email}</TableCell>
+                              <TableCell className="font-mono text-sm">{formatId(simulation.id)}</TableCell>
+                              <TableCell className="font-medium">{simulation.client_name || "N/A"}</TableCell>
+                              <TableCell>{simulation.client_email || "N/A"}</TableCell>
                               <TableCell>
-                                {simulation.vehicle_brand} {simulation.vehicle_model} {simulation.vehicle_year}
+                                {`${simulation.vehicle_brand || ""} ${simulation.vehicle_model || ""} ${simulation.vehicle_year || ""}`.trim() ||
+                                  simulation.vehicle_type ||
+                                  "N/A"}
                               </TableCell>
-                              <TableCell>{formatCurrency(simulation.vehicle_value)}</TableCell>
-                              <TableCell>{formatCurrency(simulation.down_payment_value)}</TableCell>
-                              <TableCell>{formatCurrency(simulation.monthly_payment)}</TableCell>
-                              <TableCell>{simulation.loan_term_months} meses</TableCell>
+                              <TableCell>{formatCurrency(Number(simulation.vehicle_value) || 0)}</TableCell>
+                              <TableCell>{formatCurrency(Number(simulation.down_payment_amount) || 0)}</TableCell>
+                              <TableCell>{formatCurrency(Number(simulation.monthly_payment) || 0)}</TableCell>
+                              <TableCell>{simulation.loan_term_months || "N/A"} meses</TableCell>
                               <TableCell>
                                 <Badge
                                   variant={simulation.proposal_accepted ? "default" : "secondary"}
@@ -572,11 +598,7 @@ export default function AdminPage() {
                                   {simulation.proposal_accepted ? "Aceita" : "Pendente"}
                                 </Badge>
                               </TableCell>
-                              <TableCell>
-                                {simulation.created_at
-                                  ? new Date(simulation.created_at).toLocaleDateString("pt-BR")
-                                  : "-"}
-                              </TableCell>
+                              <TableCell>{formatDate(simulation.created_at)}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -601,7 +623,7 @@ export default function AdminPage() {
                     <Card>
                       <CardContent className="p-4">
                         <div className="text-center">
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Aceitas</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Processadas</p>
                           <p className="text-2xl font-bold text-green-600">{stats.fgts.accepted}</p>
                         </div>
                       </CardContent>
@@ -609,16 +631,18 @@ export default function AdminPage() {
                     <Card>
                       <CardContent className="p-4">
                         <div className="text-center">
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Valor Total</p>
-                          <p className="text-lg font-bold">{formatCurrency(stats.fgts.totalValue)}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Em Análise</p>
+                          <p className="text-2xl font-bold text-yellow-600">{stats.fgts.total - stats.fgts.accepted}</p>
                         </div>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardContent className="p-4">
                         <div className="text-center">
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Parcela Média</p>
-                          <p className="text-lg font-bold">{formatCurrency(stats.fgts.avgMonthlyPayment)}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Taxa de Sucesso</p>
+                          <p className="text-2xl font-bold text-blue-600">
+                            {stats.fgts.total > 0 ? Math.round((stats.fgts.accepted / stats.fgts.total) * 100) : 0}%
+                          </p>
                         </div>
                       </CardContent>
                     </Card>
@@ -634,44 +658,25 @@ export default function AdminPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
+                            <TableHead>ID</TableHead>
                             <TableHead>Cliente</TableHead>
-                            <TableHead>Email</TableHead>
                             <TableHead>CPF</TableHead>
-                            <TableHead>Saldo FGTS</TableHead>
-                            <TableHead>Valor Solicitado</TableHead>
-                            <TableHead>Parcela</TableHead>
-                            <TableHead>Prazo</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Data</TableHead>
+                            <TableHead>RG</TableHead>
+                            <TableHead>Telefone</TableHead>
+                            <TableHead>Data de Criação</TableHead>
+                            <TableHead>Última Atualização</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {fgtsSimulations.map((simulation) => (
                             <TableRow key={simulation.id}>
-                              <TableCell className="font-medium">{simulation.client_name}</TableCell>
-                              <TableCell>{simulation.client_email}</TableCell>
-                              <TableCell>{simulation.client_cpf}</TableCell>
-                              <TableCell>{formatCurrency(simulation.fgts_balance)}</TableCell>
-                              <TableCell>{formatCurrency(simulation.requested_amount)}</TableCell>
-                              <TableCell>{formatCurrency(simulation.monthly_payment)}</TableCell>
-                              <TableCell>{simulation.loan_term_months} meses</TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant={simulation.proposal_accepted ? "default" : "secondary"}
-                                  className={
-                                    simulation.proposal_accepted
-                                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                                  }
-                                >
-                                  {simulation.proposal_accepted ? "Aceita" : "Pendente"}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {simulation.created_at
-                                  ? new Date(simulation.created_at).toLocaleDateString("pt-BR")
-                                  : "-"}
-                              </TableCell>
+                              <TableCell className="font-mono text-sm">{formatId(simulation.id)}</TableCell>
+                              <TableCell className="font-medium">{simulation.nome_completo || "N/A"}</TableCell>
+                              <TableCell className="font-mono">{simulation.cpf || "N/A"}</TableCell>
+                              <TableCell>{simulation.rg || "N/A"}</TableCell>
+                              <TableCell>{simulation.telefone || "N/A"}</TableCell>
+                              <TableCell>{formatDate(simulation.created_at)}</TableCell>
+                              <TableCell>{formatDate(simulation.updated_at)}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>

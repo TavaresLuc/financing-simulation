@@ -1,16 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createVehicleSimulation, getAllVehicleSimulations } from "@/lib/vehicle-database"
+import { createVehicleSimulation } from "@/lib/vehicle-database"
 import {
   calculateVehicleFinancing,
   formatVehicleFinancingForDatabase,
   parseVehicleValue,
 } from "@/lib/vehicle-calculator"
+import { neon } from "@neondatabase/serverless"
+
+const sql = neon(process.env.DATABASE_URL!)
 
 export async function POST(request: NextRequest) {
   try {
     console.log("=== Vehicle Simulation API Called ===")
 
-    // Parse request body with error handling
     let body: any
     try {
       body = await request.json()
@@ -28,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     const { personalData, vehicleData, sellerData, financingData } = body
 
-    // Validar dados obrigatórios
+    // Validate required data
     if (!personalData?.name || !personalData?.email || !personalData?.phone || !personalData?.cpf) {
       console.error("Missing personal data:", personalData)
       return NextResponse.json(
@@ -51,7 +53,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Converter valor do veículo para número
+    // Parse vehicle value
     let vehicleValue: number
     try {
       vehicleValue = parseVehicleValue(vehicleData.vehicleValue.toString())
@@ -71,7 +73,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validar dados de financiamento
+    // Validate financing data
     const downPaymentPercentage = Number(financingData?.downPaymentPercentage) || 20
     const loanTermMonths = Number(financingData?.loanTermMonths) || 24
 
@@ -101,79 +103,38 @@ export async function POST(request: NextRequest) {
       loanTermMonths,
     })
 
-    // Calcular financiamento
-    let calculationResult
-    try {
-      calculationResult = calculateVehicleFinancing({
-        vehicleValue,
-        downPaymentPercentage,
-        loanTermMonths,
-      })
-      console.log("Calculation result:", calculationResult)
-    } catch (calcError) {
-      console.error("Calculation error:", calcError)
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Erro no cálculo: ${calcError.message}`,
-        },
-        { status: 400 },
-      )
-    }
+    // Calculate financing
+    const calculationResult = calculateVehicleFinancing({
+      vehicleValue,
+      downPaymentPercentage,
+      loanTermMonths,
+    })
+    console.log("Calculation result:", calculationResult)
 
-    // Formatar dados para o banco
-    let dbData
-    try {
-      dbData = formatVehicleFinancingForDatabase(
-        personalData,
-        vehicleData,
-        sellerData,
-        { downPaymentPercentage, loanTermMonths },
-        calculationResult,
-      )
-      console.log("Database data formatted:", dbData)
-    } catch (formatError) {
-      console.error("Data formatting error:", formatError)
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Erro ao formatar dados para salvamento",
-        },
-        { status: 500 },
-      )
-    }
+    // Format data for database
+    const dbData = formatVehicleFinancingForDatabase(
+      personalData,
+      vehicleData,
+      sellerData,
+      { downPaymentPercentage, loanTermMonths },
+      calculationResult,
+    )
+    console.log("Database data formatted:", dbData)
 
-    // Salvar no banco
-    let result
-    try {
-      result = await createVehicleSimulation(dbData)
-      console.log("Simulation saved with ID:", result.id)
-    } catch (dbError) {
-      console.error("Database error:", dbError)
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Erro ao salvar simulação no banco de dados",
-        },
-        { status: 500 },
-      )
-    }
+    // Save to database
+    const result = await createVehicleSimulation(dbData)
+    console.log("Simulation saved with ID:", result.id)
 
-    // Retorno de sucesso
-    const response = {
+    return NextResponse.json({
       success: true,
       id: result.id,
       calculationResult,
-    }
-
-    console.log("Returning success response:", response)
-    return NextResponse.json(response)
+    })
   } catch (error: any) {
     console.error("=== Unexpected error in vehicle simulation API ===")
     console.error("Error details:", error)
     console.error("Error stack:", error.stack)
 
-    // Garantir que sempre retornamos JSON válido
     return NextResponse.json(
       {
         success: false,
@@ -186,13 +147,36 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    console.log("Fetching all vehicle simulations")
-    const simulations = await getAllVehicleSimulations()
+    console.log("Fetching all vehicle simulations...")
+    const simulations = await sql`
+      SELECT 
+        id,
+        client_name,
+        client_email,
+        client_phone,
+        client_cpf,
+        vehicle_type,
+        vehicle_brand,
+        vehicle_model,
+        vehicle_year,
+        vehicle_value,
+        down_payment_percentage,
+        down_payment_amount,
+        loan_amount,
+        loan_term_months,
+        interest_rate,
+        monthly_payment,
+        total_payment,
+        total_interest,
+        proposal_accepted,
+        created_at
+      FROM veiculos_simulacao 
+      ORDER BY created_at DESC 
+      LIMIT 100
+    `
 
-    return NextResponse.json({
-      success: true,
-      simulations,
-    })
+    console.log(`Found ${simulations.length} vehicle simulations`)
+    return NextResponse.json(simulations)
   } catch (error: any) {
     console.error("Error fetching vehicle simulations:", error)
     return NextResponse.json(

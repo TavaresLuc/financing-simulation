@@ -94,16 +94,32 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
+    console.log("Fetching all real estate simulations...")
     const simulations = await sql`
-      SELECT * FROM simulations 
+      SELECT 
+        id,
+        property_value,
+        down_payment_percentage,
+        down_payment_amount,
+        loan_amount,
+        loan_term_years,
+        interest_rate,
+        monthly_payment,
+        total_payment,
+        total_interest,
+        client_name,
+        client_email,
+        client_phone,
+        client_cpf,
+        proposal_accepted,
+        created_at
+      FROM simulations 
       ORDER BY created_at DESC 
-      LIMIT 50
+      LIMIT 100
     `
 
-    return NextResponse.json({
-      success: true,
-      data: simulations,
-    })
+    console.log(`Found ${simulations.length} real estate simulations`)
+    return NextResponse.json(simulations)
   } catch (error) {
     console.error("Error fetching simulations:", error)
 

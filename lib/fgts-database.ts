@@ -19,8 +19,8 @@ export async function saveFGTSSimulation(
     console.log("Salvando simulação FGTS:", data)
 
     const result = await sql`
-      INSERT INTO fgts_simulacao (nome_completo, cpf, rg, telefone)
-      VALUES (${data.nome_completo}, ${data.cpf}, ${data.rg}, ${data.telefone})
+      INSERT INTO fgts_simulacao (nome_completo, cpf, rg, telefone, created_at, updated_at)
+      VALUES (${data.nome_completo}, ${data.cpf}, ${data.rg}, ${data.telefone}, NOW(), NOW())
       RETURNING *
     `
 

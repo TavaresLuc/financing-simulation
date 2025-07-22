@@ -65,7 +65,7 @@ export default function LandingPage() {
       features: ["Processo 100% digital", "Dinheiro em até 5 dias", "Sem consulta ao SPC/Serasa"],
     },
   ]
-
+// Stats
   const stats = [
     { label: "Clientes Atendidos", value: "50.000+", icon: Users },
     { label: "Crédito Liberado", value: "R$ 2,5 bi", icon: TrendingUp },

@@ -9,27 +9,33 @@ interface StepIndicatorProps {
 export function StepIndicator({ currentStep, totalSteps, labels }: StepIndicatorProps) {
   return (
     <div className="w-full py-4">
-      <div className="flex justify-between">
+      <div className="flex justify-between items-center relative">
+        {/* Linha de fundo (conecta todos os passos) */}
+        <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-300 dark:bg-gray-700" style={{ 
+          marginLeft: '1rem', 
+          marginRight: '1rem' 
+        }} />
+        
+        {/* Linha de progresso (verde para passos completados) */}
+        <div 
+          className="absolute top-4 h-0.5 bg-green-500 transition-all duration-300 ease-in-out" 
+          style={{ 
+            left: '1rem',
+            width: currentStep > 1 ? `${((currentStep - 1) / (totalSteps - 1)) * (100 - (2 * 16 / totalSteps))}%` : '0%'
+          }} 
+        />
+
         {Array.from({ length: totalSteps }).map((_, index) => {
           const stepNumber = index + 1
           const isActive = stepNumber === currentStep
           const isCompleted = stepNumber < currentStep
 
           return (
-            <div key={stepNumber} className="flex flex-col items-center relative">
-              {/* Linha conectora */}
-              {stepNumber < totalSteps && (
-                <div
-                  className={`absolute top-4 w-full h-0.5 left-1/2 ${
-                    isCompleted ? "bg-green-500" : "bg-gray-300 dark:bg-gray-700"
-                  }`}
-                />
-              )}
-
+            <div key={stepNumber} className="flex flex-col items-center relative z-10">
               {/* Círculo do passo */}
               <div
                 className={`
-                  w-8 h-8 rounded-full flex items-center justify-center z-10
+                  w-8 h-8 rounded-full flex items-center justify-center
                   ${
                     isActive
                       ? "bg-blue-600 text-white"
@@ -62,6 +68,52 @@ export function StepIndicator({ currentStep, totalSteps, labels }: StepIndicator
             </div>
           )
         })}
+      </div>
+    </div>
+  )
+}
+
+// Exemplo de uso
+export default function App() {
+  return (
+    <div className="p-8 max-w-2xl mx-auto space-y-8">
+      <h2 className="text-2xl font-bold mb-4">Step Indicator - Exemplo</h2>
+      
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Passo 2 de 4</h3>
+          <StepIndicator 
+            currentStep={2} 
+            totalSteps={4} 
+            labels={['Início', 'Dados', 'Revisão', 'Finalizar']} 
+          />
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Passo 3 de 5</h3>
+          <StepIndicator 
+            currentStep={3} 
+            totalSteps={5} 
+            labels={['Setup', 'Config', 'Deploy', 'Test', 'Done']} 
+          />
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Passo 1 de 3</h3>
+          <StepIndicator 
+            currentStep={1} 
+            totalSteps={3} 
+            labels={['Start', 'Process', 'Finish']} 
+          />
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Sem labels</h3>
+          <StepIndicator 
+            currentStep={2} 
+            totalSteps={4} 
+          />
+        </div>
       </div>
     </div>
   )

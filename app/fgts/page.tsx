@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, AlertCircle, FileText, CreditCard, Smartphone, Clock } from "lucide-react"
 import { useRouter } from "next/navigation"
+import HeaderPages from "@/components/header"
 
 interface FormData {
   nome_completo: string
@@ -229,16 +230,10 @@ export default function FGTSPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Antecipação FGTS</h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Antecipe seu FGTS de forma rápida e segura. Preencha seus dados e receba orientações personalizadas.
-          </p>
-        </div>
 
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+        <HeaderPages />
+      <div className="max-w-4xl mx-auto py-8">
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Formulário */}
           <Card className="shadow-xl">

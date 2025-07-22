@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { calculateMortgage } from "@/lib/mortgage-calculator"
-import { formatCurrency } from "@/lib/formatters"
+import { formatCurrency, formatCPF, formatPhone } from "@/lib/formatters"
 import { ThemeToggle } from "@/components/theme-toggle"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
@@ -75,43 +75,6 @@ export default function SimulationPage() {
 
   const handleLoanTermChange = (value: number[]) => {
     setLoanTermYears(value[0])
-  }
-
-  const formatCPF = (value: string) => {
-    const digits = value.replace(/\D/g, "")
-    let formatted = ""
-
-    if (digits.length > 0) {
-      formatted = digits.substring(0, 3)
-    }
-    if (digits.length > 3) {
-      formatted += "." + digits.substring(3, 6)
-    }
-    if (digits.length > 6) {
-      formatted += "." + digits.substring(6, 9)
-    }
-    if (digits.length > 9) {
-      formatted += "-" + digits.substring(9, 11)
-    }
-
-    return formatted
-  }
-
-  const formatPhone = (value: string) => {
-    const digits = value.replace(/\D/g, "")
-    let formatted = ""
-
-    if (digits.length > 0) {
-      formatted = "(" + digits.substring(0, 2)
-    }
-    if (digits.length > 2) {
-      formatted += ") " + digits.substring(2, 7)
-    }
-    if (digits.length > 7) {
-      formatted += "-" + digits.substring(7, 11)
-    }
-
-    return formatted
   }
 
   const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -249,7 +212,7 @@ export default function SimulationPage() {
                         <span className="text-sm font-medium">{formatCurrency(calculation.downPaymentAmount)}</span>
                       </div>
                       <Slider
-                        defaultValue={[downPaymentPercentage]}
+                        value={[downPaymentPercentage]}
                         min={10}
                         max={90}
                         step={5}
@@ -268,7 +231,7 @@ export default function SimulationPage() {
                         <span className="text-sm font-medium">{loanTermYears * 12} meses</span>
                       </div>
                       <Slider
-                        defaultValue={[loanTermYears]}
+                        value={[loanTermYears]}
                         min={5}
                         max={35}
                         step={5}

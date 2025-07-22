@@ -46,7 +46,10 @@ export default function FGTSPage() {
   const formatCPF = (value: string) => {
     const numbers = value.replace(/\D/g, "")
     if (numbers.length <= 11) {
-      return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+      return numbers
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d{1,2})/, "$1-$2")
     }
     return value
   }
@@ -70,7 +73,7 @@ export default function FGTSPage() {
 
     switch (name) {
       case "nome_completo":
-        const nomePartes = value.trim().split(" ")
+        const nomePartes = value.trim().split(/\s+/)
         if (!value.trim()) {
           newErrors.nome_completo = "Nome completo é obrigatório"
         } else if (nomePartes.length < 2) {
@@ -141,6 +144,8 @@ export default function FGTSPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    console.log("Iniciando envio do formulário FGTS...")
+
     // Validar todos os campos
     Object.keys(formData).forEach((key) => {
       validateField(key, formData[key as keyof FormData])
@@ -148,6 +153,7 @@ export default function FGTSPage() {
 
     // Verificar se há erros
     if (Object.keys(errors).length > 0) {
+      console.log("Formulário contém erros:", errors)
       return
     }
 
@@ -155,6 +161,8 @@ export default function FGTSPage() {
     setSubmitError("")
 
     try {
+      console.log("Enviando dados:", formData)
+
       const response = await fetch("/api/fgts-simulations", {
         method: "POST",
         headers: {
@@ -163,9 +171,29 @@ export default function FGTSPage() {
         body: JSON.stringify(formData),
       })
 
-      const result = await response.json()
+      console.log("Response status:", response.status)
+      console.log("Response headers:", response.headers)
+
+      // Verificar se a resposta é JSON válido
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("Resposta não é JSON válido. Content-Type:", contentType)
+        const textResponse = await response.text()
+        console.error("Resposta como texto:", textResponse)
+        throw new Error("Servidor retornou resposta inválida")
+      }
+
+      let result
+      try {
+        result = await response.json()
+        console.log("Resposta da API:", result)
+      } catch (jsonError) {
+        console.error("Erro ao fazer parse do JSON:", jsonError)
+        throw new Error("Resposta do servidor não é um JSON válido")
+      }
 
       if (result.success) {
+        console.log("Solicitação FGTS enviada com sucesso!")
         setSubmitSuccess(true)
         setFormData({
           nome_completo: "",
@@ -174,11 +202,16 @@ export default function FGTSPage() {
           telefone: "",
         })
       } else {
+        console.error("Erro retornado pela API:", result.error)
         setSubmitError(result.error || "Erro ao enviar solicitação")
       }
     } catch (error) {
       console.error("Erro ao enviar formulário:", error)
-      setSubmitError("Erro de conexão. Tente novamente.")
+      if (error instanceof Error) {
+        setSubmitError(error.message)
+      } else {
+        setSubmitError("Erro de conexão. Tente novamente.")
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -230,10 +263,17 @@ export default function FGTSPage() {
   }
 
   return (
-
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <HeaderPages />
-      <div className="max-w-4xl mx-auto py-8">
+      <HeaderPages />
+      <div className="max-w-4xl mx-auto py-8 px-4">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Antecipação FGTS</h1>
+          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+            Antecipe seu FGTS de forma rápida e segura. Preencha seus dados e receba orientações personalizadas.
+          </p>
+        </div>
+
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Formulário */}
           <Card className="shadow-xl">

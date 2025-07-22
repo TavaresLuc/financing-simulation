@@ -1,56 +1,118 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { saveSimulation, getAllSimulations } from "@/lib/database"
+import { neon } from "@neondatabase/serverless"
+
+const sql = neon(process.env.DATABASE_URL!)
 
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.json()
-    console.log("Received simulation data:", data)
+    const body = await request.json()
+    console.log("Received simulation data:", body)
 
-    // Ensure all numeric fields are properly converted to numbers
-    const simulationData = {
-      property_value: Number(data.propertyValue) || 0,
-      down_payment_percentage: Number(data.downPaymentPercentage) || 20,
-      down_payment_amount: Number(data.downPaymentAmount) || 0,
-      loan_amount: Number(data.loanAmount) || 0,
-      loan_term_years: Number(data.loanTermYears) || 30,
-      interest_rate: Number(data.interest_rate) || 12.0,
-      monthly_payment: Number(data.monthlyPayment) || 0,
-      total_payment: Number(data.totalPayment) || 0,
-      total_interest: Number(data.totalInterest) || 0,
-      client_name: data.clientName || "",
-      client_email: data.clientEmail || "",
-      client_phone: data.clientPhone || "",
-      client_cpf: data.clientCPF || "",
+    // Validate required fields
+    const requiredFields = [
+      "property_value",
+      "down_payment_percentage",
+      "down_payment_amount",
+      "loan_amount",
+      "loan_term_years",
+      "interest_rate",
+      "monthly_payment",
+      "total_payment",
+      "total_interest",
+      "client_name",
+      "client_email",
+      "client_phone",
+      "client_cpf",
+    ]
+
+    for (const field of requiredFields) {
+      if (body[field] === undefined || body[field] === null) {
+        return NextResponse.json({ success: false, error: `Campo obrigatório ausente: ${field}` }, { status: 400 })
+      }
     }
 
-    console.log("Processed simulation data:", simulationData)
-    const result = await saveSimulation(simulationData)
+    // Insert into database
+    const result = await sql`
+      INSERT INTO simulations (
+        property_value,
+        down_payment_percentage,
+        down_payment_amount,
+        loan_amount,
+        loan_term_years,
+        interest_rate,
+        monthly_payment,
+        total_payment,
+        total_interest,
+        client_name,
+        client_email,
+        client_phone,
+        client_cpf,
+        created_at
+      ) VALUES (
+        ${body.property_value},
+        ${body.down_payment_percentage},
+        ${body.down_payment_amount},
+        ${body.loan_amount},
+        ${body.loan_term_years},
+        ${body.interest_rate},
+        ${body.monthly_payment},
+        ${body.total_payment},
+        ${body.total_interest},
+        ${body.client_name},
+        ${body.client_email},
+        ${body.client_phone},
+        ${body.client_cpf},
+        NOW()
+      ) RETURNING id
+    `
 
-    return NextResponse.json({ id: result.id }, { status: 201 })
+    const simulationId = result[0]?.id
+
+    if (!simulationId) {
+      throw new Error("Falha ao obter ID da simulação")
+    }
+
+    console.log("Simulation saved with ID:", simulationId)
+
+    return NextResponse.json({
+      success: true,
+      id: simulationId,
+      message: "Simulação salva com sucesso",
+    })
   } catch (error) {
-    console.error("Erro ao salvar simulação:", error)
-    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
+    console.error("Error saving simulation:", error)
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Erro interno do servidor",
+      },
+      { status: 500 },
+    )
   }
 }
 
 export async function GET() {
   try {
-    const simulations = await getAllSimulations()
-    console.log(`Retrieved ${simulations.length} simulations from database`)
+    const simulations = await sql`
+      SELECT * FROM simulations 
+      ORDER BY created_at DESC 
+      LIMIT 50
+    `
 
-    // Log a sample of the data to verify structure
-    if (simulations.length > 0) {
-      console.log("Sample simulation data:", {
-        id: simulations[0].id,
-        property_value: simulations[0].property_value,
-        monthly_payment: simulations[0].monthly_payment,
-        proposal_accepted: simulations[0].proposal_accepted,
-      })
-    }
-
-    return NextResponse.json(simulations)
+    return NextResponse.json({
+      success: true,
+      data: simulations,
+    })
   } catch (error) {
-    console.error("Erro ao buscar simulações:", error)
-    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
+    console.error("Error fetching simulations:", error)
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Erro interno do servidor",
+      },
+      { status: 500 },
+    )
   }
 }

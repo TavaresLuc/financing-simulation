@@ -7,120 +7,160 @@ export async function GET() {
   try {
     console.log("Fetching admin statistics...")
 
-    // Initialize default stats
-    let realEstateStats = { total: 0, approved: 0, total_value: 0, avg_payment: 0 }
-    let vehicleStats = { total: 0, approved: 0, total_value: 0, avg_payment: 0 }
-    let fgtsStats = { total: 0, approved: 0, total_value: 0, avg_payment: 0 }
+    // Helper function to safely convert to number
+    const safeNumber = (value: any): number => {
+      if (value === null || value === undefined || value === "") return 0
+      const num = Number(value)
+      return isNaN(num) ? 0 : num
+    }
 
-    // Get real estate simulations stats
+    // Real Estate Statistics - Completely avoid SQL casting
+    let realEstateStats = {
+      total: 0,
+      totalValue: 0,
+      avgValue: 0,
+      avgRate: 0,
+    }
+
     try {
-      const realEstateResult = await sql`
-        SELECT 
-          COUNT(*) as total,
-          COUNT(CASE WHEN proposal_accepted = true THEN 1 END) as approved,
-          COALESCE(SUM(CASE WHEN property_value IS NOT NULL AND property_value != '' THEN property_value::numeric ELSE 0 END), 0) as total_value,
-          COALESCE(AVG(CASE WHEN monthly_payment IS NOT NULL AND monthly_payment != '' THEN monthly_payment::numeric ELSE NULL END), 0) as avg_payment
-        FROM simulations
-      `
-      if (realEstateResult && realEstateResult[0]) {
-        realEstateStats = realEstateResult[0]
+      // Get basic count first
+      const countResult = await sql`SELECT COUNT(*) as total FROM simulations`
+      realEstateStats.total = safeNumber(countResult[0]?.total)
+
+      // Only fetch data if we have records
+      if (realEstateStats.total > 0) {
+        try {
+          // Get all data as strings and process in JavaScript
+          const dataResult = await sql`
+            SELECT 
+              property_value,
+              interest_rate
+            FROM simulations 
+          `
+
+          let totalValue = 0
+          let validValueCount = 0
+          let totalRate = 0
+          let validRateCount = 0
+
+          dataResult.forEach((row) => {
+            // Safely parse property_value
+            if (row.property_value && row.property_value !== "") {
+              const propValue = Number.parseFloat(String(row.property_value))
+              if (!isNaN(propValue) && propValue > 0) {
+                totalValue += propValue
+                validValueCount++
+              }
+            }
+
+            // Safely parse interest_rate
+            if (row.interest_rate && row.interest_rate !== "") {
+              const rate = Number.parseFloat(String(row.interest_rate))
+              if (!isNaN(rate) && rate > 0) {
+                totalRate += rate
+                validRateCount++
+              }
+            }
+          })
+
+          realEstateStats.totalValue = totalValue
+          realEstateStats.avgValue = validValueCount > 0 ? totalValue / validValueCount : 0
+          realEstateStats.avgRate = validRateCount > 0 ? totalRate / validRateCount : 0
+        } catch (calcError) {
+          console.error("Error calculating real estate averages:", calcError)
+          // Keep the count but set averages to 0
+        }
       }
-      console.log("Real estate stats:", realEstateStats)
     } catch (error) {
       console.error("Error fetching real estate stats:", error)
+      realEstateStats = { total: 0, totalValue: 0, avgValue: 0, avgRate: 0 }
     }
 
-    // Get vehicle simulations stats
+    // Vehicle Statistics - Completely avoid SQL casting
+    let vehicleStats = {
+      total: 0,
+      totalValue: 0,
+      avgValue: 0,
+      avgRate: 0,
+    }
+
     try {
-      const vehicleResult = await sql`
-        SELECT 
-          COUNT(*) as total,
-          COUNT(CASE WHEN proposal_accepted = true THEN 1 END) as approved,
-          COALESCE(SUM(CASE WHEN vehicle_value IS NOT NULL AND vehicle_value != '' THEN vehicle_value::numeric ELSE 0 END), 0) as total_value,
-          COALESCE(AVG(CASE WHEN monthly_payment IS NOT NULL AND monthly_payment != '' THEN monthly_payment::numeric ELSE NULL END), 0) as avg_payment
-        FROM veiculos_simulacao
-      `
-      if (vehicleResult && vehicleResult[0]) {
-        vehicleStats = vehicleResult[0]
+      // Get basic count first
+      const countResult = await sql`SELECT COUNT(*) as total FROM veiculos_simulacao`
+      vehicleStats.total = safeNumber(countResult[0]?.total)
+
+      // Only fetch data if we have records
+      if (vehicleStats.total > 0) {
+        try {
+          // Get all data as strings and process in JavaScript
+          const dataResult = await sql`
+            SELECT 
+              vehicle_value,
+              interest_rate
+            FROM veiculos_simulacao 
+          `
+
+          let totalValue = 0
+          let validValueCount = 0
+          let totalRate = 0
+          let validRateCount = 0
+
+          dataResult.forEach((row) => {
+            // Safely parse vehicle_value
+            if (row.vehicle_value && row.vehicle_value !== "") {
+              const vehValue = Number.parseFloat(String(row.vehicle_value))
+              if (!isNaN(vehValue) && vehValue > 0) {
+                totalValue += vehValue
+                validValueCount++
+              }
+            }
+
+            // Safely parse interest_rate
+            if (row.interest_rate && row.interest_rate !== "") {
+              const rate = Number.parseFloat(String(row.interest_rate))
+              if (!isNaN(rate) && rate > 0) {
+                totalRate += rate
+                validRateCount++
+              }
+            }
+          })
+
+          vehicleStats.totalValue = totalValue
+          vehicleStats.avgValue = validValueCount > 0 ? totalValue / validValueCount : 0
+          vehicleStats.avgRate = validRateCount > 0 ? totalRate / validRateCount : 0
+        } catch (calcError) {
+          console.error("Error calculating vehicle averages:", calcError)
+          // Keep the count but set averages to 0
+        }
       }
-      console.log("Vehicle stats:", vehicleStats)
     } catch (error) {
       console.error("Error fetching vehicle stats:", error)
+      vehicleStats = { total: 0, totalValue: 0, avgValue: 0, avgRate: 0 }
     }
 
-    // Get FGTS simulations stats
+    // FGTS Statistics (simple count only)
+    const fgtsStats = {
+      total: 0,
+    }
+
     try {
-      const fgtsResult = await sql`
-        SELECT 
-          COUNT(*) as total,
-          0 as approved,
-          COALESCE(SUM(CASE WHEN valor_antecipacao IS NOT NULL AND valor_antecipacao != '' THEN valor_antecipacao::numeric ELSE 0 END), 0) as total_value,
-          COALESCE(AVG(CASE WHEN valor_antecipacao IS NOT NULL AND valor_antecipacao != '' THEN valor_antecipacao::numeric ELSE NULL END), 0) as avg_payment
-        FROM fgts_simulacao
-      `
-      if (fgtsResult && fgtsResult[0]) {
-        fgtsStats = fgtsResult[0]
-      }
-      console.log("FGTS stats:", fgtsStats)
+      const fgtsResult = await sql`SELECT COUNT(*) as total FROM fgts_simulacao`
+      fgtsStats.total = safeNumber(fgtsResult[0]?.total)
     } catch (error) {
       console.error("Error fetching FGTS stats:", error)
+      fgtsStats.total = 0
     }
 
-    // Calculate totals safely
-    const totalSimulations =
-      Number(realEstateStats.total || 0) + Number(vehicleStats.total || 0) + Number(fgtsStats.total || 0)
-    const totalApproved =
-      Number(realEstateStats.approved || 0) + Number(vehicleStats.approved || 0) + Number(fgtsStats.approved || 0)
-    const totalValue =
-      Number(realEstateStats.total_value || 0) +
-      Number(vehicleStats.total_value || 0) +
-      Number(fgtsStats.total_value || 0)
-
-    // Calculate weighted average payment safely
-    let avgPayment = 0
-    const realEstateAvg = Number(realEstateStats.avg_payment || 0)
-    const vehicleAvg = Number(vehicleStats.avg_payment || 0)
-    const fgtsAvg = Number(fgtsStats.avg_payment || 0)
-    const realEstateTotal = Number(realEstateStats.total || 0)
-    const vehicleTotal = Number(vehicleStats.total || 0)
-    const fgtsTotal = Number(fgtsStats.total || 0)
-
-    if (totalSimulations > 0) {
-      const totalPayments = realEstateAvg * realEstateTotal + vehicleAvg * vehicleTotal + fgtsAvg * fgtsTotal
-      avgPayment = totalPayments / totalSimulations
+    const response = {
+      realEstate: realEstateStats,
+      vehicle: vehicleStats,
+      fgts: fgtsStats,
     }
 
-    const stats = {
-      total: totalSimulations,
-      approved: totalApproved,
-      totalValue: totalValue,
-      avgPayment: avgPayment,
-      categories: {
-        realEstate: {
-          total: Number(realEstateStats.total || 0),
-          approved: Number(realEstateStats.approved || 0),
-          totalValue: Number(realEstateStats.total_value || 0),
-          avgPayment: Number(realEstateStats.avg_payment || 0),
-        },
-        vehicle: {
-          total: Number(vehicleStats.total || 0),
-          approved: Number(vehicleStats.approved || 0),
-          totalValue: Number(vehicleStats.total_value || 0),
-          avgPayment: Number(vehicleStats.avg_payment || 0),
-        },
-        fgts: {
-          total: Number(fgtsStats.total || 0),
-          approved: Number(fgtsStats.approved || 0),
-          totalValue: Number(fgtsStats.total_value || 0),
-          avgPayment: Number(fgtsStats.avg_payment || 0),
-        },
-      },
-    }
-
-    console.log("Final admin stats:", stats)
-    return NextResponse.json(stats)
+    console.log("Admin statistics fetched successfully:", response)
+    return NextResponse.json(response)
   } catch (error) {
-    console.error("Error fetching admin stats:", error)
+    console.error("Error fetching admin statistics:", error)
     return NextResponse.json(
       {
         error: "Failed to fetch admin statistics",

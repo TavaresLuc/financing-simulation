@@ -93,8 +93,15 @@ export function formatVehicleFinancingForDatabase(
   financingData: any,
   calculationResult: VehicleFinancingResult,
 ) {
+  console.log("Formatting data for database:")
+  console.log("Personal data:", personalData)
+  console.log("Vehicle data:", vehicleData)
+  console.log("Seller data:", sellerData)
+  console.log("Financing data:", financingData)
+  console.log("Calculation result:", calculationResult)
+
   return {
-    client_name: personalData.name,
+    client_name: personalData.name, // Make sure we're using the correct field name
     client_email: personalData.email,
     client_phone: personalData.phone,
     client_cpf: personalData.cpf,
@@ -105,8 +112,8 @@ export function formatVehicleFinancingForDatabase(
     vehicle_brand: vehicleData.brand || null,
     vehicle_model: vehicleData.model || null,
     vehicle_value: calculationResult.vehicleValue,
-    purchase_timeline: sellerData.timeline || null,
-    seller_type: sellerData.sellerType || null,
+    purchase_timeline: sellerData?.timeline || null,
+    seller_type: sellerData?.sellerType || null,
     down_payment_percentage: calculationResult.downPaymentPercentage,
     down_payment_amount: calculationResult.downPaymentAmount,
     loan_amount: calculationResult.loanAmount,

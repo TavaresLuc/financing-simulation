@@ -1,39 +1,19 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
 const sql = neon(process.env.DATABASE_URL!)
 
-export async function POST(request: NextRequest) {
+export async function GET() {
   try {
-    const body = await request.json()
-    console.log("Received simulation data:", body)
+    console.log("Fetching real estate simulations...")
 
-    // Validate required fields
-    const requiredFields = [
-      "property_value",
-      "down_payment_percentage",
-      "down_payment_amount",
-      "loan_amount",
-      "loan_term_years",
-      "interest_rate",
-      "monthly_payment",
-      "total_payment",
-      "total_interest",
-      "client_name",
-      "client_email",
-      "client_phone",
-      "client_cpf",
-    ]
-
-    for (const field of requiredFields) {
-      if (body[field] === undefined || body[field] === null) {
-        return NextResponse.json({ success: false, error: `Campo obrigatório ausente: ${field}` }, { status: 400 })
-      }
-    }
-
-    // Insert into database
-    const result = await sql`
-      INSERT INTO simulations (
+    const simulations = await sql`
+      SELECT 
+        id,
+        client_name,
+        client_email,
+        client_phone,
+        client_cpf,
         property_value,
         down_payment_percentage,
         down_payment_amount,
@@ -43,61 +23,81 @@ export async function POST(request: NextRequest) {
         monthly_payment,
         total_payment,
         total_interest,
-        client_name,
-        client_email,
-        client_phone,
-        client_cpf,
-        created_at
-      ) VALUES (
-        ${body.property_value},
-        ${body.down_payment_percentage},
-        ${body.down_payment_amount},
-        ${body.loan_amount},
-        ${body.loan_term_years},
-        ${body.interest_rate},
-        ${body.monthly_payment},
-        ${body.total_payment},
-        ${body.total_interest},
-        ${body.client_name},
-        ${body.client_email},
-        ${body.client_phone},
-        ${body.client_cpf},
-        NOW()
-      ) RETURNING id
+        proposal_accepted,
+        created_at,
+        updated_at
+      FROM simulations
+      ORDER BY created_at DESC
     `
 
-    const simulationId = result[0]?.id
-
-    if (!simulationId) {
-      throw new Error("Falha ao obter ID da simulação")
-    }
-
-    console.log("Simulation saved with ID:", simulationId)
-
-    return NextResponse.json({
-      success: true,
-      id: simulationId,
-      message: "Simulação salva com sucesso",
-    })
+    console.log(`Found ${simulations.length} real estate simulations`)
+    return NextResponse.json(simulations)
   } catch (error) {
-    console.error("Error saving simulation:", error)
-
+    console.error("Error fetching real estate simulations:", error)
     return NextResponse.json(
       {
-        success: false,
-        error: error instanceof Error ? error.message : "Erro interno do servidor",
+        error: "Failed to fetch real estate simulations",
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     )
   }
 }
 
-export async function GET() {
+export async function POST(request: Request) {
   try {
-    console.log("Fetching all real estate simulations...")
-    const simulations = await sql`
-      SELECT 
-        id,
+    console.log("Creating new real estate simulation...")
+    const body = await request.json()
+
+    // Validate required fields
+    const requiredFields = ["client_name", "client_email", "property_value", "loan_term_years"]
+    for (const field of requiredFields) {
+      if (!body[field]) {
+        return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 })
+      }
+    }
+
+    // Helper function to safely convert to number
+    const safeNumber = (value: any, defaultValue = 0): number => {
+      if (value === null || value === undefined || value === "") return defaultValue
+      const num = Number(value)
+      return isNaN(num) ? defaultValue : num
+    }
+
+    // Convert and validate numeric fields
+    const propertyValue = safeNumber(body.property_value)
+    const downPaymentPercentage = safeNumber(body.down_payment_percentage, 20)
+    const loanTermYears = safeNumber(body.loan_term_years, 30)
+    const interestRate = safeNumber(body.interest_rate, 8.5)
+
+    if (propertyValue <= 0) {
+      return NextResponse.json({ error: "Property value must be greater than 0" }, { status: 400 })
+    }
+
+    // Calculate financial values
+    const downPaymentAmount = propertyValue * (downPaymentPercentage / 100)
+    const loanAmount = propertyValue - downPaymentAmount
+    const monthlyRate = interestRate / 100 / 12
+    const totalPayments = loanTermYears * 12
+
+    let monthlyPayment = 0
+    if (monthlyRate > 0) {
+      monthlyPayment =
+        (loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, totalPayments))) /
+        (Math.pow(1 + monthlyRate, totalPayments) - 1)
+    } else {
+      monthlyPayment = loanAmount / totalPayments
+    }
+
+    const totalPayment = monthlyPayment * totalPayments
+    const totalInterest = totalPayment - loanAmount
+
+    const result = await sql`
+      INSERT INTO simulations (
+        client_name,
+        client_email,
+        client_phone,
+        client_cpf,
         property_value,
         down_payment_percentage,
         down_payment_amount,
@@ -107,26 +107,51 @@ export async function GET() {
         monthly_payment,
         total_payment,
         total_interest,
-        client_name,
-        client_email,
-        client_phone,
-        client_cpf,
         proposal_accepted,
-        created_at
-      FROM simulations 
-      ORDER BY created_at DESC 
-      LIMIT 100
+        created_at,
+        updated_at
+      ) VALUES (
+        ${body.client_name},
+        ${body.client_email},
+        ${body.client_phone || ""},
+        ${body.client_cpf || ""},
+        ${propertyValue},
+        ${downPaymentPercentage},
+        ${downPaymentAmount},
+        ${loanAmount},
+        ${loanTermYears},
+        ${interestRate},
+        ${monthlyPayment},
+        ${totalPayment},
+        ${totalInterest},
+        ${body.proposal_accepted || false},
+        NOW(),
+        NOW()
+      ) RETURNING id
     `
 
-    console.log(`Found ${simulations.length} real estate simulations`)
-    return NextResponse.json(simulations)
-  } catch (error) {
-    console.error("Error fetching simulations:", error)
+    console.log("Real estate simulation created successfully:", result[0])
 
+    return NextResponse.json({
+      success: true,
+      id: result[0].id,
+      data: {
+        propertyValue,
+        downPaymentAmount,
+        loanAmount,
+        monthlyPayment,
+        totalPayment,
+        totalInterest,
+        interestRate,
+        loanTermYears,
+      },
+    })
+  } catch (error) {
+    console.error("Error creating real estate simulation:", error)
     return NextResponse.json(
       {
-        success: false,
-        error: error instanceof Error ? error.message : "Erro interno do servidor",
+        error: "Failed to create real estate simulation",
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     )

@@ -46,7 +46,8 @@ export function PersonalDataForm({ data, onUpdate, onNext }: PersonalDataFormPro
         .replace(/(-\d{4})\d+?$/, "$1")
     }
 
-    onUpdate({ ...data, [name]: formattedValue })
+    const updatedData = { ...data, [name]: formattedValue }
+    onUpdate(updatedData)
   }
 
   const validate = () => {

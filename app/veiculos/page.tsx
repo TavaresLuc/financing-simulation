@@ -68,6 +68,19 @@ export default function VehicleFinancingPage() {
       console.log("=== Submitting Vehicle Financing Form ===")
       console.log("Form data:", JSON.stringify(formData, null, 2))
 
+      // Validate that we have the required data
+      if (!formData.personalData.name) {
+        throw new Error("Nome é obrigatório")
+      }
+
+      if (!formData.personalData.email) {
+        throw new Error("Email é obrigatório")
+      }
+
+      if (!formData.vehicleData.vehicleValue) {
+        throw new Error("Valor do veículo é obrigatório")
+      }
+
       const response = await fetch("/api/vehicle-simulations", {
         method: "POST",
         headers: {
